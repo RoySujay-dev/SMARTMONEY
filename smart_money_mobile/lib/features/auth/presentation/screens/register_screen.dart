@@ -180,7 +180,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      Navigator.pushReplacementNamed(context, RouteNames.profileSetup);
+      Navigator.pushReplacementNamed(context, RouteNames.dashboard);
     } catch (error) {
       if (!mounted) return;
 

@@ -21,7 +21,7 @@ class TokenStorageService {
       _storage.write(key: _refreshTokenKey, value: refreshToken),
       _storage.write(
         key: _accessTokenExpiresAtKey,
-        value: accessTokenExpiresAt.toIso8601String(),
+        value: accessTokenExpiresAt.toUtc().toIso8601String(),
       ),
     ]);
   }
@@ -41,7 +41,7 @@ class TokenStorageService {
       return null;
     }
 
-    return DateTime.tryParse(value);
+    return DateTime.tryParse(value)?.toUtc();
   }
 
   Future<void> clearTokens() async {
