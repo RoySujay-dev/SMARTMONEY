@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../app/routes/route_names.dart';
 import '../../data/models/login_request.dart';
 import '../../data/services/auth_api_service.dart';
@@ -12,6 +13,11 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static const _purple = Color(0xFF6334D8);
+  static const _green = Color(0xFF16A765);
+  static const _darkText = Color(0xFF172033);
+  static const _mutedText = Color(0xFF687086);
+
   final _formKey = GlobalKey<FormState>();
   final _authApiService = AuthApiService();
   final _tokenStorageService = TokenStorageService();
@@ -71,7 +77,6 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    //Connect login API
     try {
       final request = LoginRequest(
         email: _emailController.text,
@@ -112,18 +117,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return InputDecoration(
       hintText: hintText,
-      prefixIcon: Icon(icon, color: const Color(0xFF16A765)),
+      prefixIcon: Icon(icon, color: _green),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      fillColor: const Color(0xFFFCFCFF),
+      hintStyle: const TextStyle(color: Color(0xFF8A90A2)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        borderSide: const BorderSide(color: Color(0xFFE8E4F2)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFF16A765), width: 1.5),
+        borderSide: const BorderSide(color: _green, width: 1.6),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
@@ -141,11 +147,13 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F7FF),
       body: Container(
+        width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFF3EEFF), Colors.white, Color(0xFFF1FFF7)],
+            colors: [Color(0xFFF1EAFF), Color(0xFFFEFCFF), Color(0xFFF0FFF7)],
+            stops: [0.0, 0.52, 1.0],
           ),
         ),
         child: SafeArea(
@@ -159,7 +167,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 0),
                       Center(
                         child: SizedBox(
                           height: 200,
@@ -169,11 +176,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 0),
                       Transform.translate(
                         offset: const Offset(0, -28),
                         child: SizedBox(
-                          height: 100,
+                          height: 112,
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -189,34 +195,35 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                               ),
-
                               Align(
                                 alignment: Alignment.center,
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      'Welcome',
+                                      'Welcome Back',
                                       textAlign: TextAlign.center,
                                       style: Theme.of(context)
                                           .textTheme
                                           .headlineLarge
                                           ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                            color: const Color(0xFF172033),
+                                            fontWeight: FontWeight.w900,
+                                            color: _darkText,
+                                            height: 1.05,
                                           ),
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      'Log in to continue managing\n'
-                                      'your money and rewards.',
+                                      'Log in to manage your money,\n'
+                                      'cashback and rewards.',
                                       textAlign: TextAlign.center,
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodyLarge
                                           ?.copyWith(
-                                            height: 1.5,
-                                            color: const Color(0xFF687086),
+                                            height: 1.45,
+                                            color: _mutedText,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                     ),
                                   ],
@@ -226,17 +233,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Container(
-                        padding: const EdgeInsets.all(15),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
+                          color: Colors.white.withValues(alpha: 0.94),
                           borderRadius: BorderRadius.circular(28),
-                          boxShadow: const [
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.70),
+                          ),
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x14000000),
-                              blurRadius: 30,
-                              offset: Offset(0, 14),
+                              color: _purple.withValues(alpha: 0.10),
+                              blurRadius: 32,
+                              offset: const Offset(0, 14),
+                            ),
+                            BoxShadow(
+                              color: _green.withValues(alpha: 0.08),
+                              blurRadius: 24,
+                              offset: const Offset(0, 10),
                             ),
                           ],
                         ),
@@ -296,76 +311,52 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: const Text(
                                   'Forgot password?',
                                   style: TextStyle(
-                                    color: Color(0xFF6334D8),
-                                    fontWeight: FontWeight.w600,
+                                    color: _purple,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 8),
-                            SizedBox(
-                              height: 56,
-                              child: FilledButton(
-                                onPressed: _isLoading ? null : _submitLogin,
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF17A95B),
-                                  disabledBackgroundColor: const Color(
-                                    0xFF9ED7B8,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Text(
-                                        'Log in',
-                                        style: TextStyle(
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                              ),
+                            _SmartMoneyLoginButton(
+                              isLoading: _isLoading,
+                              onPressed: _isLoading ? null : _submitLogin,
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 26),
-
                       Row(
                         children: [
-                          const Expanded(
-                            child: Divider(color: Color(0xFFD9DCE5)),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            child: Text(
-                              'or',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: const Color(0xFF7A8191)),
+                          Expanded(
+                            child: Divider(
+                              color: _purple.withValues(alpha: 0.14),
                             ),
                           ),
-                          const Expanded(
-                            child: Divider(color: Color(0xFFD9DCE5)),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 14),
+                            child: Text(
+                              'or',
+                              style: TextStyle(
+                                color: Color(0xFF7A8191),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: _green.withValues(alpha: 0.18),
+                            ),
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 10),
-
                       Wrap(
                         alignment: WrapAlignment.center,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text(
-                            'Don’t have an account?',
+                            'Do not have an account?',
                             style: TextStyle(
                               color: Color(0xFF394056),
                               fontSize: 15,
@@ -383,18 +374,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: const Text(
                               'Create account',
                               style: TextStyle(
-                                color: Color(0xFF6334D8),
-                                fontWeight: FontWeight.w700,
+                                color: _purple,
+                                fontWeight: FontWeight.w800,
                                 fontSize: 15,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 5),
-
-                      const SizedBox(height: 0),
-
                       Center(
                         child: Image.asset(
                           'assets/images/login_wallet_illustration.png',
@@ -402,7 +389,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           fit: BoxFit.contain,
                         ),
                       ),
-
                       const SizedBox(height: 25),
                     ],
                   ),
@@ -411,6 +397,79 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SmartMoneyLoginButton extends StatelessWidget {
+  const _SmartMoneyLoginButton({
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  final bool isLoading;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEnabled = onPressed != null && !isLoading;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: isEnabled
+              ? const [Color(0xFF17B765), Color(0xFF0C9F56)]
+              : const [Color(0xFF9ED7B8), Color(0xFF9ED7B8)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: isEnabled
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF10A85F).withValues(alpha: 0.30),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : const [],
+      ),
+      child: FilledButton(
+        onPressed: isEnabled ? onPressed : null,
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          disabledBackgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          minimumSize: const Size.fromHeight(56),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.login_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Log in',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

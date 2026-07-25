@@ -24,6 +24,9 @@ class AppRoutes {
       case RouteNames.dashboard:
         return MaterialPageRoute(builder: (_) => const DashboardScreen());
 
+      case RouteNames.profile:
+        return MaterialPageRoute(builder: (_) => const ProfileSetupScreen());
+
       case RouteNames.profileSetup:
         return MaterialPageRoute(builder: (_) => const ProfileSetupScreen());
 
