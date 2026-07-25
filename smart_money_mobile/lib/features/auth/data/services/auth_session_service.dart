@@ -1,7 +1,10 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:flutter/foundation.dart';
 import 'token_storage_service.dart';
 
 class AuthSessionService {
+  // Keep the public parameter name stable for callers/tests.
   const AuthSessionService({
     TokenStorageService tokenStorageService = const TokenStorageService(),
   }) : _tokenStorageService = tokenStorageService;

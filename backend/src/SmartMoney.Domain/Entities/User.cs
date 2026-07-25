@@ -115,4 +115,26 @@ public class User : BaseEntity
         RoleId = roleId;
         MarkAsUpdated();
     }
+
+    public void UpdateFullName(string fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+            throw new ArgumentException(
+                "Full name is required.",
+                nameof(fullName));
+
+        FullName = fullName.Trim();
+        MarkAsUpdated();
+    }
+
+    public void ChangePasswordHash(string passwordHash)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash))
+            throw new ArgumentException(
+                "Password hash is required.",
+                nameof(passwordHash));
+
+        PasswordHash = passwordHash;
+        MarkAsUpdated();
+    }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/login_demo_widgets.dart';
 import '../../data/models/verify_email_otp_request.dart';
 import '../../data/services/auth_api_service.dart';
 import '../../data/models/resend_email_otp_request.dart';
@@ -164,34 +166,36 @@ class _OtpVerificationDialogState extends State<OtpVerificationDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      child: Container(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: LoginDemoGlassCard(
+        borderRadius: 25,
         width: 420,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFF4EEFF), Colors.white, Color(0xFFF1FFF7)],
-          ),
-        ),
+        padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              'assets/images/smartmoney_logo.png',
+            Container(
+              width: 58,
               height: 58,
-              fit: BoxFit.contain,
+              decoration: const BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.verified_user_outlined,
+                color: Colors.white,
+                size: 28,
+              ),
             ),
             const SizedBox(height: 18),
             const Text(
-              'Verify your account',
+              'Verify Account',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF172033),
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textDark,
               ),
             ),
             const SizedBox(height: 10),
@@ -201,7 +205,7 @@ class _OtpVerificationDialogState extends State<OtpVerificationDialog> {
               style: const TextStyle(
                 fontSize: 14,
                 height: 1.45,
-                color: Color(0xFF687086),
+                color: AppColors.textMid,
               ),
             ),
             const SizedBox(height: 24),
@@ -222,22 +226,22 @@ class _OtpVerificationDialogState extends State<OtpVerificationDialog> {
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF172033),
+                      color: AppColors.textDark,
                     ),
                     decoration: InputDecoration(
                       counterText: '',
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.inputFill,
                       contentPadding: EdgeInsets.zero,
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: Color(0xFFE2E4EB)),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(
-                          color: Color(0xFF6334D8),
-                          width: 1.6,
+                          color: AppColors.primary,
+                          width: 2,
                         ),
                       ),
                     ),
@@ -256,35 +260,11 @@ class _OtpVerificationDialogState extends State<OtpVerificationDialog> {
             ),
             const SizedBox(height: 24),
 
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _verifyOtp,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6334D8),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Verify OTP',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-              ),
+            LoginDemoGradientButton(
+              label: 'Verify OTP',
+              icon: Icons.check_circle_outline_rounded,
+              isLoading: _isLoading,
+              onPressed: _isLoading ? null : _verifyOtp,
             ),
 
             const SizedBox(height: 12),
@@ -297,7 +277,7 @@ class _OtpVerificationDialogState extends State<OtpVerificationDialog> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF687086),
+                  color: AppColors.textMid,
                 ),
               )
             else
@@ -313,7 +293,7 @@ class _OtpVerificationDialogState extends State<OtpVerificationDialog> {
                         'Resend OTP',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF6334D8),
+                          color: AppColors.primary,
                         ),
                       ),
               ),

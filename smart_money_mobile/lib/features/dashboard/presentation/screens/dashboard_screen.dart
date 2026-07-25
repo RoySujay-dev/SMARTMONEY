@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/routes/route_names.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/login_demo_widgets.dart';
+import '../../../profile/data/services/profile_api_service.dart';
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -8,262 +13,254 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _selectedNavigationIndex = 0;
-  int _selectedCategoryIndex = 0;
+  final _profileApiService = ProfileApiService();
+  String _profileName = 'Profile';
+  String _profileInitials = 'SM';
 
-  final List<String> _categories = const [
-    'Trending Now',
-    'Fashion',
-    'Electronics',
-    'Travel',
-    'Food',
-    'More',
+  final List<Map<String, Object>> _stats = const [
+    {
+      'label': 'Available',
+      'value': 'Rs 3,450',
+      'icon': Icons.account_balance_wallet_outlined,
+      'color': AppColors.primary,
+      'background': Color(0x1F6366F1),
+    },
+    {
+      'label': 'Pending',
+      'value': 'Rs 780',
+      'icon': Icons.schedule_rounded,
+      'color': AppColors.warning,
+      'background': Color(0x1FF59E0B),
+    },
+    {
+      'label': 'Lifetime',
+      'value': 'Rs 12,840',
+      'icon': Icons.trending_up_rounded,
+      'color': AppColors.success,
+      'background': Color(0x1F10B981),
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileSummary();
+  }
+
+  @override
+  void dispose() {
+    _profileApiService.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProfileSummary() async {
+    try {
+      final profile = await _profileApiService.getProfile();
+
+      if (!mounted) return;
+
+      setState(() {
+        _profileName = profile.fullName.isEmpty
+            ? 'Profile'
+            : profile.fullName.split(RegExp(r'\s+')).first;
+        _profileInitials = _initials(profile.fullName);
+      });
+    } catch (_) {
+      // Keep the default profile chip if the session is missing or expired.
+    }
+  }
+
+  String _initials(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) {
+      return 'SM';
+    }
+
+    return parts.take(2).map((part) => part[0]).join().toUpperCase();
+  }
+
+  final List<Map<String, String>> _offers = const [
+    {'brand': 'Flipkart Sale', 'rate': 'Up to 8%'},
+    {'brand': 'Amazon Great Deal', 'rate': '6.5%'},
+    {'brand': 'Myntra Fashion', 'rate': '12%'},
+    {'brand': 'Swiggy Eats', 'rate': '5%'},
+    {'brand': 'MakeMyTrip', 'rate': '9%'},
+  ];
+
+  final List<Map<String, Object>> _stores = const [
+    {'name': 'Flipkart', 'code': 'FK', 'amount': 'Rs 920', 'progress': 0.85},
+    {'name': 'Amazon', 'code': 'AZ', 'amount': 'Rs 740', 'progress': 0.65},
+    {'name': 'Myntra', 'code': 'MN', 'amount': 'Rs 540', 'progress': 0.50},
+    {'name': 'Ajio', 'code': 'AJ', 'amount': 'Rs 320', 'progress': 0.32},
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFF3ECFF),
-                    Color(0xFFF3ECFF),
-                    Color(0xFFF1FBF5),
-                    Color(0xFFF1FBF5),
-                  ],
-                  stops: [0.0, 0.25, 0.50, 1.0],
+      body: LoginDemoBackground(
+        child: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _buildTopbar()),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _buildWalletBanner(),
+                    const SizedBox(height: 16),
+                    _buildOfferStrip(),
+                    const SizedBox(height: 16),
+                    _buildStatsGrid(),
+                    const SizedBox(height: 16),
+                    _buildCashbackOverview(),
+                    const SizedBox(height: 16),
+                    _buildTopStores(),
+                    const SizedBox(height: 16),
+                    _buildWithdrawCard(),
+                  ]),
                 ),
               ),
-            ),
+            ],
           ),
-          SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        _buildHeader(),
-                        const SizedBox(height: 20),
-                        _buildCashbackOverview(),
-                        const SizedBox(height: 20),
-                        _buildBonusBoosters(),
-                        const SizedBox(height: 20),
-                        _buildCategoryTabs(),
-                        const SizedBox(height: 18),
-                        _buildOfferGrid(),
-                        const SizedBox(height: 28),
-                      ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopbar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 390;
+
+          return Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.72),
+                  ),
+                  boxShadow: [AppColors.cardShadow],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: Image.asset(
+                    'assets/images/smartmoney_mark.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isCompact ? 154 : 190,
+                    ),
+                    child: Image.asset(
+                      'assets/images/smartmoney_wordmark.png',
+                      height: isCompact ? 24 : 27,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.centerLeft,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: _buildBottomNavigation(),
-    );
-  }
-
-  Widget _buildCashbackOverview() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 18,
-              offset: Offset(0, 7),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your Cashback Overview',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF111833),
               ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildCashbackItem(
-                    label: 'Available',
-                    amount: '\$11.45',
-                    icon: Icons.account_balance_wallet_outlined,
-                    iconColor: const Color(0xFF7137F0),
-                    iconBackground: const Color(0xFFF0E8FF),
-                  ),
-                ),
+              if (!isCompact) ...[
+                _buildTopbarIcon(Icons.notifications_none_rounded),
                 const SizedBox(width: 10),
-                Expanded(
-                  child: _buildCashbackItem(
-                    label: 'Pending',
-                    amount: '\$24.30',
-                    icon: Icons.pie_chart_outline_rounded,
-                    iconColor: const Color(0xFFFF7A00),
-                    iconBackground: const Color(0xFFFFF0E2),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildCashbackItem(
-                    label: 'Lifetime',
-                    amount: '\$331.02',
-                    icon: Icons.trending_up_rounded,
-                    iconColor: const Color(0xFF35B84B),
-                    iconBackground: const Color(0xFFE9F9E9),
-                  ),
-                ),
               ],
-            ),
-          ],
-        ),
+              _buildProfileSection(isCompact: isCompact),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildCategoryTabs() {
-    return SizedBox(
+  Widget _buildTopbarIcon(IconData icon) {
+    return Container(
+      width: 42,
       height: 42,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        scrollDirection: Axis.horizontal,
-        itemCount: _categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 26),
-        itemBuilder: (context, index) {
-          final isSelected = _selectedCategoryIndex == index;
-
-          return InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () {
-              setState(() {
-                _selectedCategoryIndex = index;
-              });
-            },
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  _categories[index],
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                    color: isSelected
-                        ? const Color(0xFF111833)
-                        : const Color(0xFF747A8B),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: isSelected ? 54 : 0,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF111833),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.70),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
       ),
+      child: Icon(icon, color: AppColors.textMid),
     );
   }
 
-  Widget _buildBonusBoosters() {
-    final boosters = <Map<String, Object>>[
-      {'name': 'Flipkart', 'cashback': '7%', 'color': const Color(0xFFFFE46B)},
-      {'name': 'Myntra', 'cashback': '8%', 'color': const Color(0xFFFFE5F0)},
-      {'name': 'AJIO', 'cashback': '5%', 'color': const Color(0xFFE9F3FF)},
-      {'name': 'cult.fit', 'cashback': '4%', 'color': const Color(0xFFEAF9EE)},
-      {'name': 'Nykaa', 'cashback': '8%', 'color': const Color(0xFFFFE5EC)},
-      {'name': 'Tata 1mg', 'cashback': '6%', 'color': const Color(0xFFFFE5D5)},
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+  Widget _buildProfileSection({required bool isCompact}) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () {
+        Navigator.pushNamed(context, RouteNames.profile).then((_) {
+          _loadProfileSummary();
+        });
+      },
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+        height: 46,
+        padding: EdgeInsets.fromLTRB(8, 6, isCompact ? 8 : 10, 6),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(26),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x10000000),
-              blurRadius: 18,
-              offset: Offset(0, 7),
-            ),
-          ],
+          color: Colors.white.withValues(alpha: 0.76),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.68)),
+          boxShadow: [AppColors.cardShadow],
         ),
-        child: Column(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                const Text(
-                  'Bonus Boosters',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF111833),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    'Cashback boost up every 7 days',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: Color(0xFF747A8B)),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    'View All',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF6334D8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              height: 104,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: boosters.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 14),
-                itemBuilder: (context, index) {
-                  final booster = boosters[index];
-
-                  return _buildBoosterItem(
-                    name: booster['name']! as String,
-                    cashback: booster['cashback']! as String,
-                    backgroundColor: booster['color']! as Color,
-                  );
-                },
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                shape: BoxShape.circle,
               ),
+              child: Text(
+                _profileInitials,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            if (!isCompact) ...[
+              const SizedBox(width: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 82),
+                child: Text(
+                  _profileName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textDark,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
+            ],
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: AppColors.textSoft,
+              size: 18,
             ),
           ],
         ),
@@ -271,293 +268,339 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildBoosterItem({
-    required String name,
-    required String cashback,
-    required Color backgroundColor,
-  }) {
-    return SizedBox(
-      width: 68,
+  Widget _buildWalletBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradientExtended,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [AppColors.buttonShadow],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 62,
-            height: 62,
-            alignment: Alignment.center,
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: backgroundColor,
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFFFB24A), width: 1.5),
-            ),
-            child: Text(
-              name,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF172033),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Available Cashback Balance',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  '+12.4%',
+                  style: TextStyle(
+                    color: Color(0xFFFDE68A),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Rs 3,450.00',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 34,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 5),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFFA72F)),
+          const SizedBox(height: 6),
+          Text(
+            '+ Rs 780 pending confirmation',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.78),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
             ),
-            child: Text(
-              cashback,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF8B4B00),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _buildWalletButton(
+                  label: 'Withdraw',
+                  icon: Icons.arrow_upward_rounded,
+                  isSolid: true,
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildWalletButton(
+                  label: 'History',
+                  icon: Icons.history_rounded,
+                  isSolid: false,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildOfferGrid() {
-    final offers = <Map<String, Object>>[
-      {
-        'brand': 'Amazon',
-        'cashback': 'Up to 6% Cashback',
-        'description': 'Shopping, electronics and more',
-        'background': const Color(0xFFFFF2D8),
-        'accent': const Color(0xFFFFA928),
-      },
-      {
-        'brand': 'Myntra',
-        'cashback': 'Up to 8% Cashback',
-        'description': 'Top fashion and lifestyle brands',
-        'background': const Color(0xFFFFE9F1),
-        'accent': const Color(0xFFE93B78),
-      },
-      {
-        'brand': 'MakeMyTrip',
-        'cashback': 'Up to 7% Cashback',
-        'description': 'Flights, hotels and holiday bookings',
-        'background': const Color(0xFFE9F2FF),
-        'accent': const Color(0xFF3978E8),
-      },
-      {
-        'brand': 'Swiggy',
-        'cashback': 'Up to 5% Cashback',
-        'description': 'Food delivery and dining offers',
-        'background': const Color(0xFFFFEEE2),
-        'accent': const Color(0xFFF57C24),
-      },
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: offers.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 14,
-          mainAxisSpacing: 14,
-          childAspectRatio: 0.76,
-        ),
-        itemBuilder: (context, index) {
-          final offer = offers[index];
-
-          return _buildOfferCard(
-            brand: offer['brand']! as String,
-            cashback: offer['cashback']! as String,
-            description: offer['description']! as String,
-            backgroundColor: offer['background']! as Color,
-            accentColor: offer['accent']! as Color,
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildOfferCard({
-    required String brand,
-    required String cashback,
-    required String description,
-    required Color backgroundColor,
-    required Color accentColor,
+  Widget _buildWalletButton({
+    required String label,
+    required IconData icon,
+    required bool isSolid,
   }) {
     return Container(
+      height: 44,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 16,
-            offset: Offset(0, 6),
+        color: isSolid ? Colors.white : Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: isSolid ? AppColors.primary : Colors.white,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSolid ? AppColors.primary : Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                color: backgroundColor,
-                padding: const EdgeInsets.all(16),
-                child: Stack(
-                  children: [
-                    Align(
-                      alignment: Alignment.center,
-                      child: Container(
-                        width: 74,
-                        height: 74,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x12000000),
-                              blurRadius: 12,
-                              offset: Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          brand.substring(0, 1),
-                          style: TextStyle(
-                            fontSize: 31,
-                            fontWeight: FontWeight.w900,
-                            color: accentColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: Icon(
-                        Icons.favorite_border_rounded,
-                        size: 23,
-                        color: accentColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    );
+  }
+
+  Widget _buildOfferStrip() {
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _offers.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final offer = _offers[index];
+
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.74),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.70)),
+              boxShadow: [AppColors.cardShadow],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.local_fire_department_rounded,
+                  color: AppColors.warning,
+                  size: 19,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  offer['brand']!,
+                  style: const TextStyle(
+                    color: AppColors.textDark,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  offer['rate']!,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatsGrid() {
+    return Row(
+      children: List.generate(_stats.length, (index) {
+        final stat = _stats[index];
+
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(left: index == 0 ? 0 : 10),
+            child: LoginDemoGlassCard(
+              padding: const EdgeInsets.all(14),
+              borderRadius: 18,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: stat['background']! as Color,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      stat['icon']! as IconData,
+                      color: stat['color']! as Color,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   Text(
-                    brand,
+                    stat['value']! as String,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 17,
+                      color: AppColors.textDark,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF111833),
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 3),
                   Text(
-                    cashback,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: accentColor,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    stat['label']! as String,
                     style: const TextStyle(
-                      fontSize: 12,
-                      height: 1.35,
-                      color: Color(0xFF747A8B),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 38,
-                    child: OutlinedButton(
-                      onPressed: () {},
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF6334D8),
-                        side: const BorderSide(color: Color(0xFFDDD1FA)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Shop Now',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
+                      color: AppColors.textMid,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildCashbackOverview() {
+    return LoginDemoGlassCard(
+      padding: const EdgeInsets.all(20),
+      borderRadius: 20,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            title: 'Cashback Overview',
+            subtitle: 'Monthly earnings across stores',
+          ),
+          const SizedBox(height: 22),
+          SizedBox(
+            height: 126,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: const [
+                _Bar(label: 'Jan', value: 0.50),
+                _Bar(label: 'Feb', value: 0.33),
+                _Bar(label: 'Mar', value: 0.65),
+                _Bar(label: 'Apr', value: 0.57),
+                _Bar(label: 'May', value: 0.82),
+                _Bar(label: 'Jun', value: 1.00, isActive: true),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCashbackItem({
-    required String label,
-    required String amount,
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBackground,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8E9EF)),
-      ),
+  Widget _buildTopStores() {
+    return LoginDemoGlassCard(
+      padding: const EdgeInsets.all(20),
+      borderRadius: 20,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            title: 'Top Stores',
+            subtitle: 'By cashback this month',
+          ),
+          const SizedBox(height: 16),
+          ..._stores.map(_buildStoreItem),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoreItem(Map<String, Object> store) {
+    final progress = store['progress']! as double;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
         children: [
           Container(
             width: 42,
             height: 42,
-            decoration: BoxDecoration(
-              color: iconBackground,
-              borderRadius: BorderRadius.circular(13),
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: iconColor, size: 25),
+            child: Text(
+              store['code']! as String,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  store['name']! as String,
+                  style: const TextStyle(
+                    color: AppColors.textDark,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.10),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
           Text(
-            label,
+            store['amount']! as String,
             style: const TextStyle(
+              color: AppColors.primary,
               fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF555B6D),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            amount,
-            style: const TextStyle(
-              fontSize: 17,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF111833),
             ),
           ),
         ],
@@ -565,123 +608,157 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFF4ECFF), Color(0xFFF5F6FF), Color(0xFFF8F4FF)],
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(34)),
-      ),
+  Widget _buildWithdrawCard() {
+    return LoginDemoGlassCard(
+      padding: const EdgeInsets.all(20),
+      borderRadius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Hi Tushar 👋',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF111833),
-            ),
+          _buildSectionHeader(
+            title: 'Withdraw Cashback',
+            subtitle: 'Choose your payout method',
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Total saving \$331.02',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF31384E),
-            ),
+          const SizedBox(height: 16),
+          Row(
+            children: const [
+              _PayoutOption(icon: Icons.payments_outlined, label: 'UPI'),
+              SizedBox(width: 10),
+              _PayoutOption(
+                icon: Icons.account_balance_outlined,
+                label: 'Bank',
+              ),
+              SizedBox(width: 10),
+              _PayoutOption(icon: Icons.card_giftcard_outlined, label: 'Gift'),
+            ],
           ),
-          const SizedBox(height: 26),
-          Container(
-            height: 58,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x11000000),
-                  blurRadius: 14,
-                  offset: Offset(0, 5),
+          const SizedBox(height: 16),
+          LoginDemoGradientButton(
+            label: 'Withdraw Now',
+            icon: Icons.arrow_upward_rounded,
+            onPressed: () {},
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Min. Rs 200. Processed in 2-4 business days.',
+            style: TextStyle(color: AppColors.textSoft, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader({
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textDark,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
                 ),
-              ],
-            ),
-            child: const TextField(
-              decoration: InputDecoration(
-                hintText: 'Search from over 500 top brands',
-                hintStyle: TextStyle(fontSize: 16, color: Color(0xFF7A8091)),
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  size: 29,
-                  color: Color(0xFF707789),
-                ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 18,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(color: AppColors.textSoft, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        const Icon(Icons.arrow_forward_rounded, color: AppColors.primary),
+      ],
+    );
+  }
+}
+
+class _Bar extends StatelessWidget {
+  const _Bar({required this.label, required this.value, this.isActive = false});
+
+  final String label;
+  final double value;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: FractionallySizedBox(
+                heightFactor: value,
+                child: Container(
+                  width: 16,
+                  decoration: BoxDecoration(
+                    gradient: isActive
+                        ? AppColors.primaryGradient
+                        : LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              AppColors.primary.withValues(alpha: 0.55),
+                              AppColors.primaryEnd.withValues(alpha: 0.20),
+                            ],
+                          ),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
                 ),
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(color: AppColors.textSoft, fontSize: 11),
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildBottomNavigation() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x16000000),
-            blurRadius: 18,
-            offset: Offset(0, -4),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: _selectedNavigationIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedNavigationIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF141A3A),
-        unselectedItemColor: const Color(0xFF747A8B),
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
+class _PayoutOption extends StatelessWidget {
+  const _PayoutOption({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 12,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: AppColors.primary, size: 22),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textMid,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Shop',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.grid_view_rounded),
-            label: 'Categories',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            label: 'Wallet',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle_outlined),
-            label: 'Profile',
-          ),
-        ],
       ),
     );
   }
