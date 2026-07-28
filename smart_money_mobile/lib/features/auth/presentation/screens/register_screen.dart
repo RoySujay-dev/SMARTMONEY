@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/routes/route_names.dart';
+import '../../data/models/login_request.dart';
 import '../../data/models/register_request.dart';
 import '../../data/services/auth_api_service.dart';
+import '../../data/services/token_storage_service.dart';
 import '../widgets/otp_verification_dialog.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -20,6 +22,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _authApiService = AuthApiService();
+  final _tokenStorageService = TokenStorageService();
 
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -181,6 +184,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (!mounted || isVerified != true) {
+        return;
+      }
+
+      try {
+        final loginResponse = await _authApiService.login(
+          LoginRequest(
+            email: _emailController.text,
+            password: _passwordController.text,
+          ),
+        );
+
+        await _tokenStorageService.saveTokens(
+          accessToken: loginResponse.accessToken,
+          refreshToken: loginResponse.refreshToken,
+          accessTokenExpiresAt: loginResponse.accessTokenExpiresAt,
+        );
+
+        if (!mounted) return;
+      } catch (_) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account verified. Please login to continue.'),
+          ),
+        );
+
+        Navigator.pushReplacementNamed(context, RouteNames.login);
         return;
       }
 
