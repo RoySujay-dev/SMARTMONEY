@@ -13,6 +13,8 @@ public class User : BaseEntity
 
     public string PasswordHash { get; private set; } = string.Empty;
 
+    public string? ProfileImageUrl { get; private set; }
+
     public UserStatus Status { get; private set; } = UserStatus.Pending;
 
     public Guid RoleId { get; private set; }
@@ -135,6 +137,15 @@ public class User : BaseEntity
                 nameof(passwordHash));
 
         PasswordHash = passwordHash;
+        MarkAsUpdated();
+    }
+
+    public void UpdateProfileImageUrl(string profileImageUrl)
+    {
+        ProfileImageUrl = string.IsNullOrWhiteSpace(profileImageUrl)
+            ? null
+            : profileImageUrl.Trim();
+
         MarkAsUpdated();
     }
 }

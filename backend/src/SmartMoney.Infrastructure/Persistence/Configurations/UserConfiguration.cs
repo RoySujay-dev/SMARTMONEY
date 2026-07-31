@@ -27,6 +27,9 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(500)
             .IsRequired();
 
+        builder.Property(x => x.ProfileImageUrl)
+            .HasMaxLength(500);
+
         builder.Property(x => x.MobileNumber)
             .HasMaxLength(20);
 

@@ -5,6 +5,7 @@ using SmartMoney.Application.Contracts.Identity.Login;
 using SmartMoney.Domain.Entities;
 using SmartMoney.Domain.Enums;
 using System.Security.Cryptography;
+using RefreshTokenEntity = SmartMoney.Domain.Entities.RefreshToken;
 
 namespace SmartMoney.Application.Features.Identity.Login;
 
@@ -92,7 +93,7 @@ public sealed class LoginUserCommandHandler
         DateTime refreshTokenExpiresAt =
             DateTime.UtcNow.AddDays(7);
 
-        var refreshToken = new RefreshToken(
+        var refreshToken = new RefreshTokenEntity(
             user.Id,
             refreshTokenValue,
             refreshTokenExpiresAt);

@@ -8,6 +8,8 @@ using SmartMoney.Application.Contracts.Identity.VerifyEmailOtp;
 using SmartMoney.Application.Features.Identity.VerifyEmailOtp;
 using SmartMoney.Application.Contracts.Identity.ResendEmailOtp;
 using SmartMoney.Application.Features.Identity.ResendEmailOtp;
+using SmartMoney.Application.Contracts.Identity.RefreshToken;
+using SmartMoney.Application.Features.Identity.RefreshToken;
 
 
 namespace SmartMoney.Application.DependencyInjection;
@@ -31,6 +33,10 @@ public static class ApplicationDependencyInjection
         services.AddScoped<ResendEmailOtpValidator>();
 
         services.AddScoped<ICommandHandler<ResendEmailOtpCommand, ResendEmailOtpResponse>,ResendEmailOtpCommandHandler>();
+
+        services.AddScoped<RefreshTokenValidator>();
+
+        services.AddScoped<ICommandHandler<RefreshTokenCommand, RefreshTokenResponse>,RefreshTokenCommandHandler>();
 
         return services;
     }

@@ -12,18 +12,32 @@ namespace SmartMoney.Api.Controllers;
 [Route("api/profile")]
 public sealed class ProfileController : ControllerBase
 {
+    private const long MaxProfilePhotoBytes = 2 * 1024 * 1024;
+
+    private static readonly IReadOnlyDictionary<string, string>
+        ProfilePhotoExtensions = new Dictionary<string, string>(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            ["image/jpeg"] = ".jpg",
+            ["image/png"] = ".png",
+            ["image/webp"] = ".webp"
+        };
+
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IWebHostEnvironment _environment;
 
     public ProfileController(
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IWebHostEnvironment environment)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _unitOfWork = unitOfWork;
+        _environment = environment;
     }
 
     [HttpGet]
@@ -119,6 +133,90 @@ public sealed class ProfileController : ControllerBase
         });
     }
 
+    [HttpPost("photo")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ProfileResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UploadPhoto(
+        [FromForm] IFormFile? photo,
+        CancellationToken cancellationToken)
+    {
+        if (photo is null || photo.Length == 0)
+        {
+            return BadRequest(new
+            {
+                message = "Profile photo is required."
+            });
+        }
+
+        if (photo.Length > MaxProfilePhotoBytes)
+        {
+            return BadRequest(new
+            {
+                message = "Profile photo must be 2 MB or smaller."
+            });
+        }
+
+        string contentType = photo.ContentType ?? string.Empty;
+
+        if (!ProfilePhotoExtensions.TryGetValue(
+                contentType,
+                out string? extension) ||
+            string.IsNullOrWhiteSpace(extension))
+        {
+            return BadRequest(new
+            {
+                message = "Only JPG, PNG, and WebP images are supported."
+            });
+        }
+
+        User? user = await GetCurrentUserAsync(cancellationToken);
+
+        if (user is null)
+        {
+            return NotFound(new
+            {
+                message = "Profile was not found."
+            });
+        }
+
+        string uploadsPath = Path.Combine(
+            _environment.WebRootPath ??
+            Path.Combine(_environment.ContentRootPath, "wwwroot"),
+            "uploads",
+            "profile-images");
+
+        Directory.CreateDirectory(uploadsPath);
+
+        string fileName = $"{user.Id:N}-{Guid.NewGuid():N}{extension}";
+        string filePath = Path.Combine(uploadsPath, fileName);
+        string profileImageUrl = $"/uploads/profile-images/{fileName}";
+        string? previousProfileImageUrl = user.ProfileImageUrl;
+
+        await using (FileStream stream = System.IO.File.Create(filePath))
+        {
+            await photo.CopyToAsync(stream, cancellationToken);
+        }
+
+        user.UpdateProfileImageUrl(profileImageUrl);
+
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            TryDeleteFile(filePath);
+            throw;
+        }
+
+        TryDeleteExistingProfilePhoto(previousProfileImageUrl);
+
+        return Ok(ProfileResponse.FromUser(user));
+    }
+
     private async Task<User?> GetCurrentUserAsync(
         CancellationToken cancellationToken)
     {
@@ -131,6 +229,42 @@ public sealed class ProfileController : ControllerBase
 
         return await _userRepository.GetByIdAsync(id, cancellationToken);
     }
+
+    private void TryDeleteExistingProfilePhoto(string? profileImageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(profileImageUrl) ||
+            !profileImageUrl.StartsWith(
+                "/uploads/profile-images/",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        string fileName = Path.GetFileName(profileImageUrl);
+        string filePath = Path.Combine(
+            _environment.WebRootPath ??
+            Path.Combine(_environment.ContentRootPath, "wwwroot"),
+            "uploads",
+            "profile-images",
+            fileName);
+
+        TryDeleteFile(filePath);
+    }
+
+    private static void TryDeleteFile(string filePath)
+    {
+        try
+        {
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
+        }
+        catch
+        {
+            // Photo cleanup should not fail the profile update response.
+        }
+    }
 }
 
 public sealed record UpdateProfileNameRequest(string Name);
@@ -142,6 +276,7 @@ public sealed record ProfileResponse(
     string FullName,
     string Email,
     string PhoneNumber,
+    string? ProfileImageUrl,
     bool IsEmailVerified,
     string Status)
 {
@@ -152,6 +287,7 @@ public sealed record ProfileResponse(
             user.FullName,
             user.Email,
             user.MobileNumber,
+            user.ProfileImageUrl,
             user.IsEmailVerified,
             user.Status.ToString());
     }

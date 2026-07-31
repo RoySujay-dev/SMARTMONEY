@@ -1,4 +1,5 @@
-﻿using SmartMoney.Application.Abstractions.Persistence;
+using Microsoft.EntityFrameworkCore;
+using SmartMoney.Application.Abstractions.Persistence;
 using SmartMoney.Domain.Entities;
 using SmartMoney.Infrastructure.Persistence.Context;
 
@@ -11,6 +12,18 @@ public sealed class RefreshTokenRepository : IRefreshTokenRepository
     public RefreshTokenRepository(SmartMoneyDbContext context)
     {
         _context = context;
+    }
+
+    public Task<RefreshToken?> GetByTokenAsync(
+        string token,
+        CancellationToken cancellationToken = default)
+    {
+        return _context.RefreshTokens
+            .Include(refreshToken => refreshToken.User)
+            .ThenInclude(user => user.Role)
+            .SingleOrDefaultAsync(
+                refreshToken => refreshToken.Token == token,
+                cancellationToken);
     }
 
     public async Task AddAsync(

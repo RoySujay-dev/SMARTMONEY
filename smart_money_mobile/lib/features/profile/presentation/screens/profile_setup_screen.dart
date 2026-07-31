@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../app/routes/route_names.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -41,12 +42,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _tokenStorageService = const TokenStorageService();
   final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _imagePicker = ImagePicker();
 
   ProfileResponse? _profile;
   bool _isLoading = true;
   bool _isSavingName = false;
   bool _isChangingPassword = false;
   bool _isPasswordHidden = true;
+  bool _isUploadingProfilePhoto = false;
 
   @override
   void initState() {
@@ -172,6 +175,73 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
   }
 
+  Future<void> _pickProfilePhoto() async {
+    if (_isUploadingProfilePhoto) {
+      return;
+    }
+
+    try {
+      final photo = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        imageQuality: 85,
+      );
+
+      if (photo == null || !mounted) {
+        return;
+      }
+
+      setState(() {
+        _isUploadingProfilePhoto = true;
+      });
+
+      final updatedProfile = await _profileApiService.uploadProfilePhoto(
+        bytes: await photo.readAsBytes(),
+        fileName: photo.name,
+        contentType: _profilePhotoContentType(photo.name, photo.mimeType),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _profile = updatedProfile;
+        _isUploadingProfilePhoto = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _isUploadingProfilePhoto = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to update profile photo')),
+      );
+    }
+  }
+
+  String _profilePhotoContentType(String fileName, String? mimeType) {
+    if (mimeType != null && mimeType.trim().isNotEmpty) {
+      return mimeType;
+    }
+
+    final lowerName = fileName.toLowerCase();
+
+    if (lowerName.endsWith('.png')) {
+      return 'image/png';
+    }
+
+    if (lowerName.endsWith('.webp')) {
+      return 'image/webp';
+    }
+
+    return 'image/jpeg';
+  }
+
   Future<void> _logout() async {
     await _tokenStorageService.clearTokens();
 
@@ -202,6 +272,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         .join()
         .substring(0, parts.length > 1 ? 2 : 1)
         .toUpperCase();
+  }
+
+  String _profileImageUrl(String value) {
+    final imageUrl = value.trim();
+
+    if (imageUrl.isEmpty) {
+      return '';
+    }
+
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+
+    return '${_profileApiService.baseUrl}$imageUrl';
   }
 
   InputDecoration _inputDecoration({
@@ -290,6 +374,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget _buildHeader(ProfileResponse? profile) {
     final fullName = profile?.fullName ?? 'Profile';
     final email = profile?.email ?? '';
+    final profilePhotoUrl = _profileImageUrl(profile?.profileImageUrl ?? '');
     final status = (profile?.status.isNotEmpty ?? false)
         ? profile!.status
         : 'Active';
@@ -308,26 +393,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                width: isCompact ? 70 : 82,
-                height: isCompact ? 70 : 82,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.58),
-                    width: 2,
-                  ),
-                ),
-                child: Text(
-                  _initials(fullName),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: isCompact ? 24 : 28,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+              _ProfileAvatar(
+                initials: _initials(fullName),
+                imageUrl: profilePhotoUrl,
+                size: isCompact ? 70 : 82,
+                onPickPhoto: _pickProfilePhoto,
+                isUploading: _isUploadingProfilePhoto,
               ),
               const SizedBox(width: 18),
               Expanded(
@@ -870,6 +941,137 @@ class _InfoDivider extends StatelessWidget {
       height: 22,
       thickness: 1,
       color: AppColors.inputBorder.withValues(alpha: 0.72),
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({
+    required this.initials,
+    required this.imageUrl,
+    required this.size,
+    required this.onPickPhoto,
+    required this.isUploading,
+  });
+
+  final String initials;
+  final String imageUrl;
+  final double size;
+  final VoidCallback onPickPhoto;
+  final bool isUploading;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl.trim().isNotEmpty;
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.58),
+                width: 2,
+              ),
+            ),
+            child: ClipOval(
+              child: hasImage
+                  ? Image.network(
+                      imageUrl,
+                      width: size,
+                      height: size,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return _InitialsAvatarLabel(
+                          initials: initials,
+                          fontSize: size < 76 ? 24 : 28,
+                        );
+                      },
+                    )
+                  : _InitialsAvatarLabel(
+                      initials: initials,
+                      fontSize: size < 76 ? 24 : 28,
+                    ),
+            ),
+          ),
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Tooltip(
+              message: 'Add profile photo',
+              child: Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                child: InkResponse(
+                  onTap: isUploading ? null : onPickPhoto,
+                  radius: 18,
+                  customBorder: const CircleBorder(),
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.textDark.withValues(alpha: 0.16),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: isUploading
+                        ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.photo_camera_outlined,
+                            color: AppColors.primary,
+                            size: 15,
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InitialsAvatarLabel extends StatelessWidget {
+  const _InitialsAvatarLabel({
+    required this.initials,
+    required this.fontSize,
+  });
+
+  final String initials;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      initials,
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: fontSize,
+        fontWeight: FontWeight.w900,
+      ),
     );
   }
 }

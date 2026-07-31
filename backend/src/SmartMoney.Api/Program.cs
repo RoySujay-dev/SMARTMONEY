@@ -51,6 +51,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("FlutterWeb");
 
+app.UseStaticFiles();
+
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
