@@ -140,9 +140,11 @@ public sealed class ProfileController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UploadPhoto(
-        [FromForm] IFormFile? photo,
+        [FromForm] UploadProfilePhotoRequest request,
         CancellationToken cancellationToken)
     {
+        IFormFile? photo = request.Photo;
+
         if (photo is null || photo.Length == 0)
         {
             return BadRequest(new
@@ -270,6 +272,11 @@ public sealed class ProfileController : ControllerBase
 public sealed record UpdateProfileNameRequest(string Name);
 
 public sealed record ChangeProfilePasswordRequest(string NewPassword);
+
+public sealed class UploadProfilePhotoRequest
+{
+    public IFormFile? Photo { get; set; }
+}
 
 public sealed record ProfileResponse(
     Guid Id,
