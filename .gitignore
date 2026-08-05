@@ -21,10 +21,6 @@ packages/
 # Logs
 *.log
 
-# Uploaded user content
-backend/src/SmartMoney.Api/wwwroot/uploads/profile-images/*
-!backend/src/SmartMoney.Api/wwwroot/uploads/profile-images/.gitkeep
-
 # Windows
 Thumbs.db
 Desktop.ini

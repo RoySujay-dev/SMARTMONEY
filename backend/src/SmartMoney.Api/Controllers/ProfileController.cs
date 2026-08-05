@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartMoney.Api.Storage;
 using SmartMoney.Application.Abstractions.Authentication;
 using SmartMoney.Application.Abstractions.Persistence;
 using SmartMoney.Domain.Entities;
@@ -26,18 +27,18 @@ public sealed class ProfileController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IWebHostEnvironment _environment;
+    private readonly IProfilePhotoStorage _profilePhotoStorage;
 
     public ProfileController(
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
         IUnitOfWork unitOfWork,
-        IWebHostEnvironment environment)
+        IProfilePhotoStorage profilePhotoStorage)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _unitOfWork = unitOfWork;
-        _environment = environment;
+        _profilePhotoStorage = profilePhotoStorage;
     }
 
     [HttpGet]
@@ -184,25 +185,19 @@ public sealed class ProfileController : ControllerBase
             });
         }
 
-        string uploadsPath = Path.Combine(
-            _environment.WebRootPath ??
-            Path.Combine(_environment.ContentRootPath, "wwwroot"),
-            "uploads",
-            "profile-images");
-
-        Directory.CreateDirectory(uploadsPath);
-
-        string fileName = $"{user.Id:N}-{Guid.NewGuid():N}{extension}";
-        string filePath = Path.Combine(uploadsPath, fileName);
-        string profileImageUrl = $"/uploads/profile-images/{fileName}";
+        string objectPath =
+            $"users/{user.Id:N}/{Guid.NewGuid():N}{extension}";
         string? previousProfileImageUrl = user.ProfileImageUrl;
 
-        await using (FileStream stream = System.IO.File.Create(filePath))
-        {
-            await photo.CopyToAsync(stream, cancellationToken);
-        }
+        await using Stream stream = photo.OpenReadStream();
+        StoredProfilePhoto storedPhoto =
+            await _profilePhotoStorage.UploadAsync(
+                stream,
+                objectPath,
+                contentType,
+                cancellationToken);
 
-        user.UpdateProfileImageUrl(profileImageUrl);
+        user.UpdateProfileImageUrl(storedPhoto.PublicUrl);
 
         try
         {
@@ -210,11 +205,16 @@ public sealed class ProfileController : ControllerBase
         }
         catch
         {
-            TryDeleteFile(filePath);
+            await _profilePhotoStorage.DeleteByPublicUrlAsync(
+                storedPhoto.PublicUrl,
+                cancellationToken);
+
             throw;
         }
 
-        TryDeleteExistingProfilePhoto(previousProfileImageUrl);
+        await _profilePhotoStorage.DeleteByPublicUrlAsync(
+            previousProfileImageUrl,
+            cancellationToken);
 
         return Ok(ProfileResponse.FromUser(user));
     }
@@ -230,42 +230,6 @@ public sealed class ProfileController : ControllerBase
         }
 
         return await _userRepository.GetByIdAsync(id, cancellationToken);
-    }
-
-    private void TryDeleteExistingProfilePhoto(string? profileImageUrl)
-    {
-        if (string.IsNullOrWhiteSpace(profileImageUrl) ||
-            !profileImageUrl.StartsWith(
-                "/uploads/profile-images/",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        string fileName = Path.GetFileName(profileImageUrl);
-        string filePath = Path.Combine(
-            _environment.WebRootPath ??
-            Path.Combine(_environment.ContentRootPath, "wwwroot"),
-            "uploads",
-            "profile-images",
-            fileName);
-
-        TryDeleteFile(filePath);
-    }
-
-    private static void TryDeleteFile(string filePath)
-    {
-        try
-        {
-            if (System.IO.File.Exists(filePath))
-            {
-                System.IO.File.Delete(filePath);
-            }
-        }
-        catch
-        {
-            // Photo cleanup should not fail the profile update response.
-        }
     }
 }
 

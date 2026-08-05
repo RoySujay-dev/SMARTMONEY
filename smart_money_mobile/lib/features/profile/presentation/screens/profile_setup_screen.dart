@@ -208,9 +208,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         _isUploadingProfilePhoto = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo updated')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated')));
     } catch (_) {
       if (!mounted) return;
 
@@ -251,9 +251,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   void _showMvpMessage(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label will be available soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label will be available soon')));
   }
 
   String _initials(String name) {
@@ -1055,10 +1055,7 @@ class _ProfileAvatar extends StatelessWidget {
 }
 
 class _InitialsAvatarLabel extends StatelessWidget {
-  const _InitialsAvatarLabel({
-    required this.initials,
-    required this.fontSize,
-  });
+  const _InitialsAvatarLabel({required this.initials, required this.fontSize});
 
   final String initials;
   final double fontSize;
