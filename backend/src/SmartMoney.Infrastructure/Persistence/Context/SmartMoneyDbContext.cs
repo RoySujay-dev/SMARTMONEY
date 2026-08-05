@@ -24,6 +24,21 @@ public sealed class SmartMoneyDbContext : DbContext, IUnitOfWork
     public DbSet<EmailVerificationOtp> EmailVerificationOtps
     => Set<EmailVerificationOtp>();
 
+    public DbSet<Category> Categories => Set<Category>();
+
+    public DbSet<Store> Stores => Set<Store>();
+
+    public DbSet<StoreCategory> StoreCategories => Set<StoreCategory>();
+
+    public DbSet<Offer> Offers => Set<Offer>();
+
+    public DbSet<AffiliateNetwork> AffiliateNetworks => Set<AffiliateNetwork>();
+
+    public DbSet<StoreAffiliateMapping> StoreAffiliateMappings
+        => Set<StoreAffiliateMapping>();
+
+    public DbSet<Banner> Banners => Set<Banner>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
