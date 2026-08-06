@@ -23,4 +23,18 @@ public sealed class StoreRepository : IStoreRepository
             .ThenBy(store => store.Name)
             .ToListAsync(cancellationToken);
     }
+    public async Task <IReadOnlyList<Store>> GetActiveByCategorySlugAsync (string categorySlug, CancellationToken cancellationToken = default)
+
+    {
+        return await _dbContext.Stores
+            .AsNoTracking()
+            .Where(store =>
+                store.IsActive &&
+                store.StoreCategories.Any(storeCategory =>
+                    storeCategory.Category.IsActive &&
+                    storeCategory.Category.Slug == categorySlug))
+            .OrderBy(store => store.DisplayOrder)
+            .ThenBy(store => store.Name)
+            .ToListAsync(cancellationToken);
+    }
 }
