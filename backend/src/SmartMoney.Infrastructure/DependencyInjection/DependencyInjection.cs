@@ -42,6 +42,8 @@ public static class DependencyInjection
         services.AddSingleton<IOtpGenerator, SecureOtpGenerator>();
         services.AddSingleton<IEmailOtpSender, ConsoleEmailOtpSender>();
         services.AddSingleton<IOtpHasher, SecureOtpHasher>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+
 
         // Read JWT settings
         JwtOptions jwtOptions =
