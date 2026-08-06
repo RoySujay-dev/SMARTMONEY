@@ -2,6 +2,7 @@
 using SmartMoney.Application.Abstractions.Messaging;
 using SmartMoney.Application.Contracts.Stores;
 using SmartMoney.Application.Features.Stores.GetStores;
+using SmartMoney.Application.Features.Stores.GetStoreDetails;
 
 namespace SmartMoney.Api.Controllers;
 
@@ -11,10 +12,13 @@ public sealed class StoresController : ControllerBase
 
 {
     private readonly IQueryHandler <GetStoresQuery,IReadOnlyList <StoreListItemResponse>> _getStoresHandler;
-    public StoresController (IQueryHandler <GetStoresQuery,IReadOnlyList <StoreListItemResponse>> getStoresHandler)
 
+    private readonly IQueryHandler <GetStoreDetailsQuery, StoreDetailsResponse?> _getStoreDetailsHandler;
+    public StoresController (IQueryHandler<GetStoresQuery,IReadOnlyList<StoreListItemResponse>> getStoresHandler,
+                             IQueryHandler<GetStoreDetailsQuery,StoreDetailsResponse?> getStoreDetailsHandler)
     {
         _getStoresHandler = getStoresHandler;
+        _getStoreDetailsHandler = getStoreDetailsHandler;
     }
 
     [HttpGet]
@@ -27,5 +31,25 @@ public sealed class StoresController : ControllerBase
         var stores = await _getStoresHandler.HandleAsync (query,cancellationToken);
 
         return Ok(stores);
+    }
+
+    [HttpGet("{slug}")]
+    [ProducesResponseType(typeof(StoreDetailsResponse),StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<StoreDetailsResponse>> GetBySlug(string slug,CancellationToken cancellationToken)
+
+    {
+        var query = new GetStoreDetailsQuery(slug);
+
+        var store = await _getStoreDetailsHandler.HandleAsync(
+            query,
+            cancellationToken);
+
+        if (store is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(store);
     }
 }

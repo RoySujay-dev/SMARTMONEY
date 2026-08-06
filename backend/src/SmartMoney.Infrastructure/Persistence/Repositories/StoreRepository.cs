@@ -37,4 +37,11 @@ public sealed class StoreRepository : IStoreRepository
             .ThenBy(store => store.Name)
             .ToListAsync(cancellationToken);
     }
+    public async Task<Store?> GetActiveBySlugAsync (string slug, CancellationToken cancellationToken = default)
+
+    {
+        return await _dbContext.Stores
+            .AsNoTracking()
+            .FirstOrDefaultAsync (store => store.IsActive && store.Slug == slug, cancellationToken);
+    }
 }
