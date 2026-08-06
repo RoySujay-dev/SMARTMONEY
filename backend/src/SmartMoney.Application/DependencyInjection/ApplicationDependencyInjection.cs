@@ -1,17 +1,19 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using SmartMoney.Application.Abstractions.Messaging;
+using SmartMoney.Application.Contracts.Categories;
 using SmartMoney.Application.Contracts.Identity.Login;
 using SmartMoney.Application.Contracts.Identity.RefreshToken;
 using SmartMoney.Application.Contracts.Identity.Register;
 using SmartMoney.Application.Contracts.Identity.ResendEmailOtp;
 using SmartMoney.Application.Contracts.Identity.VerifyEmailOtp;
+using SmartMoney.Application.Contracts.Stores;
+using SmartMoney.Application.Features.Categories.GetCategories;
 using SmartMoney.Application.Features.Identity.Login;
 using SmartMoney.Application.Features.Identity.RefreshToken;
 using SmartMoney.Application.Features.Identity.Register;
 using SmartMoney.Application.Features.Identity.ResendEmailOtp;
 using SmartMoney.Application.Features.Identity.VerifyEmailOtp;
-using SmartMoney.Application.Contracts.Categories;
-using SmartMoney.Application.Features.Categories.GetCategories;
+using SmartMoney.Application.Features.Stores.GetStores;
 
 
 namespace SmartMoney.Application.DependencyInjection;
@@ -41,6 +43,8 @@ public static class ApplicationDependencyInjection
         services.AddScoped<ICommandHandler<RefreshTokenCommand, RefreshTokenResponse>,RefreshTokenCommandHandler>();
 
         services.AddScoped<IQueryHandler<GetCategoriesQuery,IReadOnlyList<CategoryListItemResponse>>,GetCategoriesQueryHandler>();
+
+        services.AddScoped<IQueryHandler<GetStoresQuery,IReadOnlyList<StoreListItemResponse>>,GetStoresQueryHandler>();
 
         return services;
     }
