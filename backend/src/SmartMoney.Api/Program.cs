@@ -3,11 +3,15 @@ using SmartMoney.Infrastructure.Persistence.Context;
 using SmartMoney.Infrastructure.Persistence.Seed;
 using SmartMoney.Application;
 using SmartMoney.Application.DependencyInjection;
+using SmartMoney.Api.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.Configure<SupabaseStorageOptions>(
+    builder.Configuration.GetSection(SupabaseStorageOptions.SectionName));
+builder.Services.AddHttpClient<IProfilePhotoStorage, SupabaseProfilePhotoStorage>();
 
 // Add services to the container.
 // Framework Services

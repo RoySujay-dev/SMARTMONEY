@@ -10,6 +10,8 @@ using SmartMoney.Application.Contracts.Identity.VerifyEmailOtp;
 using SmartMoney.Application.Features.Identity.VerifyEmailOtp;
 using SmartMoney.Application.Contracts.Identity.ResendEmailOtp;
 using SmartMoney.Application.Features.Identity.ResendEmailOtp;
+using SmartMoney.Application.Contracts.Identity.RefreshToken;
+using SmartMoney.Application.Features.Identity.RefreshToken;
 
 namespace SmartMoney.Api.Controllers;
 
@@ -25,6 +27,8 @@ public sealed class IdentityController : ControllerBase
 
     private readonly ICommandHandler<ResendEmailOtpCommand,ResendEmailOtpResponse> _resendEmailOtpHandler;
 
+    private readonly ICommandHandler<RefreshTokenCommand,RefreshTokenResponse> _refreshTokenHandler;
+
     public IdentityController(
         ICommandHandler<
             RegisterUserCommand,
@@ -37,12 +41,16 @@ public sealed class IdentityController : ControllerBase
             VerifyEmailOtpResponse> verifyEmailOtpHandler,
         ICommandHandler<
             ResendEmailOtpCommand,
-            ResendEmailOtpResponse> resendEmailOtpHandler)
+            ResendEmailOtpResponse> resendEmailOtpHandler,
+        ICommandHandler<
+            RefreshTokenCommand,
+            RefreshTokenResponse> refreshTokenHandler)
     {
         _registerUserHandler = registerUserHandler;
         _loginUserHandler = loginUserHandler;
         _verifyEmailOtpHandler = verifyEmailOtpHandler;
         _resendEmailOtpHandler = resendEmailOtpHandler;
+        _refreshTokenHandler = refreshTokenHandler;
     }
 
     [AllowAnonymous]
@@ -184,6 +192,41 @@ public sealed class IdentityController : ControllerBase
         catch (InvalidOperationException exception)
         {
             return BadRequest(new
+            {
+                message = exception.Message
+            });
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpPost("refresh-token")]
+    [ProducesResponseType(typeof(RefreshTokenResponse),StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request,CancellationToken cancellationToken)
+    {
+        var command = new RefreshTokenCommand(
+            request.RefreshToken);
+
+        try
+        {
+            RefreshTokenResponse response =
+                await _refreshTokenHandler.HandleAsync(
+                    command,
+                    cancellationToken);
+
+            return Ok(response);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new
+            {
+                message = exception.Message
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Unauthorized(new
             {
                 message = exception.Message
             });

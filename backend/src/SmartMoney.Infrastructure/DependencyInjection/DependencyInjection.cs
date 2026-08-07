@@ -32,6 +32,8 @@ public static class DependencyInjection
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IEmailVerificationOtpRepository,EmailVerificationOtpRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IStoreRepository, StoreRepository>();
 
         services.AddScoped<IUnitOfWork>(serviceProvider =>
             serviceProvider.GetRequiredService<SmartMoneyDbContext>());
@@ -42,6 +44,9 @@ public static class DependencyInjection
         services.AddSingleton<IOtpGenerator, SecureOtpGenerator>();
         services.AddSingleton<IEmailOtpSender, ConsoleEmailOtpSender>();
         services.AddSingleton<IOtpHasher, SecureOtpHasher>();
+        
+
+
 
         // Read JWT settings
         JwtOptions jwtOptions =

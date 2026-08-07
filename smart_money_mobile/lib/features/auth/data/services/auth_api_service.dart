@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import '../models/register_request.dart';
 import '../models/verify_email_otp_request.dart';
 import '../models/resend_email_otp_request.dart';
+import '../models/refresh_token_request.dart';
+import '../models/refresh_token_response.dart';
 import '../models/login_request.dart';
 import '../models/login_response.dart';
 
@@ -92,5 +94,28 @@ class AuthApiService {
     }
 
     return LoginResponse.fromJson(decodedBody);
+  }
+
+  Future<RefreshTokenResponse> refreshToken(RefreshTokenRequest request) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/api/identity/refresh-token'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(request.toJson()),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'Token refresh failed with status ${response.statusCode}: '
+        '${response.body}',
+      );
+    }
+
+    final decodedBody = jsonDecode(response.body);
+
+    if (decodedBody is! Map<String, dynamic>) {
+      throw const FormatException('Invalid refresh-token response.');
+    }
+
+    return RefreshTokenResponse.fromJson(decodedBody);
   }
 }

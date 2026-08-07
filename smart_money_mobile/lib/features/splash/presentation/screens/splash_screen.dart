@@ -87,6 +87,7 @@ class _SplashScreenState extends State<SplashScreen> {
     _fallbackTimer?.cancel();
     _videoController.removeListener(_videoListener);
     _videoController.dispose();
+    _authSessionService.dispose();
     super.dispose();
   }
 

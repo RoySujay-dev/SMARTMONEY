@@ -15,6 +15,12 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final _profileApiService = ProfileApiService();
   String _profileInitials = 'SM';
+  String _profileName = 'SmartMoney User';
+  String _profileEmail = '';
+  String _profileImageUrl = '';
+  bool _isProfileVerified = false;
+  bool _isDrawerOpen = false;
+  String _selectedDrawerItem = 'Dashboard';
 
   final List<Map<String, Object>> _categories = const [
     {
@@ -64,6 +70,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       setState(() {
         _profileInitials = _initials(profile.fullName);
+        _profileName = profile.fullName;
+        _profileEmail = profile.email;
+        _profileImageUrl = _profileImageUrlFor(profile.profileImageUrl);
+        _isProfileVerified = profile.isEmailVerified;
       });
     } catch (_) {
       // Keep the default profile chip if the session is missing or expired.
@@ -84,6 +94,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return parts.take(2).map((part) => part[0]).join().toUpperCase();
   }
 
+  String _profileImageUrlFor(String value) {
+    final imageUrl = value.trim();
+
+    if (imageUrl.isEmpty) {
+      return '';
+    }
+
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+
+    return '${_profileApiService.baseUrl}$imageUrl';
+  }
+
   final List<Map<String, Object>> _featuredOffers = const [
     {
       'brand': 'Flipkart',
@@ -92,6 +116,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'badge': 'Hot',
       'icon': Icons.shopping_bag_outlined,
       'color': AppColors.primary,
+      'logoPath': 'assets/images/brands/flipkart.png',
+      'themeColor': Color(0xFF2874F0),
     },
     {
       'brand': 'Myntra',
@@ -100,6 +126,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'badge': 'Best rate',
       'icon': Icons.checkroom_outlined,
       'color': Color(0xFFEC4899),
+      'logoPath': 'assets/images/brands/myntra.png',
+      'themeColor': Color(0xFFEC4899),
     },
     {
       'brand': 'Swiggy',
@@ -108,6 +136,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'badge': 'Popular',
       'icon': Icons.restaurant_outlined,
       'color': AppColors.warning,
+      'logoPath': 'assets/images/brands/swiggy.png',
+      'themeColor': Color(0xFFFC8019),
     },
   ];
 
@@ -118,6 +148,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'category': 'Electronics',
       'rate': 'Up to 8%',
       'color': AppColors.primary,
+      'logoPath': 'assets/images/brands/flipkart.png',
     },
     {
       'name': 'Amazon',
@@ -125,6 +156,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'category': 'Marketplace',
       'rate': '6.5%',
       'color': AppColors.info,
+      'logoPath': 'assets/images/brands/amazon.webp',
     },
     {
       'name': 'Myntra',
@@ -132,6 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'category': 'Fashion',
       'rate': '12%',
       'color': Color(0xFFEC4899),
+      'logoPath': 'assets/images/brands/myntra.png',
     },
     {
       'name': 'MakeMyTrip',
@@ -169,34 +202,322 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: LoginDemoBackground(
-        child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(child: _buildTopbar()),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    _buildDiscoveryHero(),
-                    const SizedBox(height: 16),
-                    _buildCategoryStrip(),
-                    const SizedBox(height: 16),
-                    _buildFeaturedOffers(),
-                    const SizedBox(height: 16),
-                    _buildPopularStores(),
-                    const SizedBox(height: 16),
-                    _buildRecommendedDeals(),
-                    const SizedBox(height: 16),
-                    _buildHowItWorks(),
-                  ]),
+      body: Stack(
+        children: [
+          LoginDemoBackground(
+            child: SafeArea(
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: _buildTopbar()),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        _buildDiscoveryHero(),
+                        const SizedBox(height: 12),
+                        _buildSearchBar(),
+                        const SizedBox(height: 16),
+                        _buildCategoryStrip(),
+                        const SizedBox(height: 16),
+                        _buildFeaturedOffers(),
+                        const SizedBox(height: 16),
+                        _buildPopularStores(),
+                        const SizedBox(height: 16),
+                        _buildRecommendedDeals(),
+                        const SizedBox(height: 16),
+                        _buildHowItWorks(),
+                      ]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isDrawerOpen) _buildDrawerOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerOverlay() {
+    return Positioned.fill(
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 180),
+        opacity: _isDrawerOpen ? 1 : 0,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _closeDrawer,
+          child: Container(
+            color: Colors.black.withValues(alpha: 0.32),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                tween: Tween(begin: -24, end: 0),
+                builder: (context, offset, child) {
+                  return Transform.translate(
+                    offset: Offset(offset, 0),
+                    child: child,
+                  );
+                },
+                child: GestureDetector(
+                  onTap: () {},
+                  child: Container(
+                    width: MediaQuery.sizeOf(context).width * 0.80,
+                    constraints: const BoxConstraints(maxWidth: 320),
+                    height: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFF),
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(26),
+                        bottomRight: Radius.circular(26),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.textDark.withValues(alpha: 0.22),
+                          blurRadius: 28,
+                          offset: const Offset(10, 0),
+                        ),
+                      ],
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 14, 14, 0),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 42,
+                                  height: 42,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(13),
+                                    boxShadow: [AppColors.cardShadow],
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: Image.asset(
+                                    'assets/images/smartmoney_mark.png',
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                const SizedBox(width: 9),
+                                Expanded(
+                                  child: Image.asset(
+                                    'assets/images/smartmoney_wordmark.png',
+                                    height: 24,
+                                    fit: BoxFit.contain,
+                                    alignment: Alignment.centerLeft,
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Close menu',
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    color: AppColors.textDark,
+                                  ),
+                                  onPressed: _closeDrawer,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            _buildDrawerProfileRow(),
+                            const SizedBox(height: 22),
+                            _buildDrawerMenuList(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildDrawerProfileRow() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.82)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.88),
+              shape: BoxShape.circle,
+            ),
+            child: _ProfileImageOrInitials(
+              initials: _profileInitials,
+              imageUrl: _profileImageUrl,
+              size: 42,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _profileName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textDark,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _profileEmail.isEmpty ? 'No email found' : _profileEmail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isProfileVerified
+                            ? Icons.verified_rounded
+                            : Icons.shield_outlined,
+                        color: AppColors.primary,
+                        size: 13,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _isProfileVerified ? 'Verified' : 'Active',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerMenuList() {
+    final items = [
+      _DrawerMenuItemData(
+        label: 'Dashboard',
+        icon: Icons.dashboard_outlined,
+        isActive: _selectedDrawerItem == 'Dashboard',
+        onTap: () => _selectDrawerItem('Dashboard'),
+      ),
+      _DrawerMenuItemData(
+        label: 'Stores',
+        icon: Icons.storefront_outlined,
+        isActive: _selectedDrawerItem == 'Stores',
+        onTap: () => _selectDrawerItem('Stores'),
+      ),
+      _DrawerMenuItemData(
+        label: 'Offers',
+        icon: Icons.local_offer_outlined,
+        isActive: _selectedDrawerItem == 'Offers',
+        onTap: () => _selectDrawerItem('Offers'),
+      ),
+      _DrawerMenuItemData(
+        label: 'Categories',
+        icon: Icons.grid_view_rounded,
+        isActive: _selectedDrawerItem == 'Categories',
+        onTap: () => _selectDrawerItem('Categories'),
+      ),
+      _DrawerMenuItemData(
+        label: 'Withdraw',
+        icon: Icons.account_balance_wallet_outlined,
+        isActive: _selectedDrawerItem == 'Withdraw',
+        onTap: () => _selectDrawerItem('Withdraw'),
+      ),
+      _DrawerMenuItemData(
+        label: 'Profile',
+        icon: Icons.person_outline_rounded,
+        isActive: _selectedDrawerItem == 'Profile',
+        onTap: () => _selectDrawerItem('Profile', openProfile: true),
+      ),
+    ];
+
+    return Column(
+      children: items
+          .map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _DrawerMenuRow(item: item),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  void _openDrawer() {
+    setState(() {
+      _isDrawerOpen = true;
+    });
+  }
+
+  void _closeDrawer() {
+    setState(() {
+      _isDrawerOpen = false;
+    });
+  }
+
+  Future<void> _selectDrawerItem(
+    String label, {
+    bool openProfile = false,
+  }) async {
+    setState(() {
+      _selectedDrawerItem = label;
+    });
+
+    if (!openProfile) {
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 160));
+
+    if (!mounted) return;
+
+    _openProfileFromDrawer();
+  }
+
+  void _openProfileFromDrawer() {
+    _closeDrawer();
+
+    Navigator.pushNamed(context, RouteNames.profile).then((_) {
+      _loadProfileSummary();
+    });
   }
 
   Widget _buildTopbar() {
@@ -256,10 +577,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildMenuButton() {
-    return const SizedBox(
+    return SizedBox(
       width: 42,
       height: 42,
-      child: Icon(Icons.menu_rounded, color: AppColors.textDark, size: 23),
+      child: IconButton(
+        tooltip: 'Open menu',
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        splashRadius: 22,
+        icon: const _ModernMenuIcon(),
+        onPressed: _openDrawer,
+      ),
     );
   }
 
@@ -296,22 +624,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                _profileInitials,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+            _ProfileImageOrInitials(
+              initials: _profileInitials,
+              imageUrl: _profileImageUrl,
+              size: 34,
+              fontSize: 12,
             ),
             const Icon(
               Icons.keyboard_arrow_down_rounded,
@@ -360,7 +677,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: const Text(
-                        'Cashback shopping',
+                        'Top cashback today',
                         style: TextStyle(
                           color: AppColors.success,
                           fontSize: 12,
@@ -370,7 +687,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 13),
                     const Text(
-                      'Find stores. Shop smarter. Earn cashback.',
+                      'Earn up to 12% cashback',
                       style: TextStyle(
                         color: AppColors.textDark,
                         fontSize: 26,
@@ -380,7 +697,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Compare cashback rates before you shop through SmartMoney.',
+                      'Myntra fashion deals are live. Shop through SmartMoney to earn rewards.',
                       style: TextStyle(
                         color: AppColors.textMid,
                         fontSize: 13,
@@ -408,39 +725,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () => _showDashboardMessage('Store search'),
-            child: Container(
-              height: 52,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: AppColors.inputFill.withValues(alpha: 0.80),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.inputBorder),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.search_rounded, color: AppColors.textSoft),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Search stores, brands, offers',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColors.textSoft,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Icon(Icons.tune_rounded, color: AppColors.primary, size: 20),
-                ],
-              ),
-            ),
-          ),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -456,12 +740,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               icon: const Icon(Icons.explore_outlined, size: 18),
               label: const Text(
-                'Explore Stores',
+                'View Top Offers',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => _showDashboardMessage('Store search'),
+      child: Container(
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: AppColors.inputFill.withValues(alpha: 0.80),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.inputBorder),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.search_rounded, color: AppColors.textSoft),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Search stores, brands, offers',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(Icons.tune_rounded, color: AppColors.primary, size: 20),
+          ],
+        ),
       ),
     );
   }
@@ -552,6 +871,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 badge: offer['badge']! as String,
                 icon: offer['icon']! as IconData,
                 color: offer['color']! as Color,
+                logoPath: offer['logoPath'] as String?,
+                themeColor: offer['themeColor'] as Color?,
                 onTap: () =>
                     _showDashboardMessage('${offer['brand']! as String} offer'),
               );
@@ -594,6 +915,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       category: store['category']! as String,
                       rate: store['rate']! as String,
                       color: store['color']! as Color,
+                      logoPath: store['logoPath'] as String?,
                       onTap: () => _showDashboardMessage(
                         '${store['name']! as String} store',
                       ),
@@ -726,6 +1048,8 @@ class _FeaturedOfferCard extends StatelessWidget {
     required this.badge,
     required this.icon,
     required this.color,
+    this.logoPath,
+    this.themeColor,
     required this.onTap,
   });
 
@@ -735,10 +1059,19 @@ class _FeaturedOfferCard extends StatelessWidget {
   final String badge;
   final IconData icon;
   final Color color;
+  final String? logoPath;
+  final Color? themeColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final isThemed = themeColor != null;
+    final foregroundColor = isThemed ? Colors.white : AppColors.textDark;
+    final subtitleColor = isThemed
+        ? Colors.white.withValues(alpha: 0.78)
+        : AppColors.textMid;
+    final rateColor = isThemed ? Colors.white : color;
+
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
@@ -746,10 +1079,16 @@ class _FeaturedOfferCard extends StatelessWidget {
         width: 238,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.82),
+          color: themeColor ?? Colors.white.withValues(alpha: 0.82),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
-          boxShadow: [AppColors.cardShadow],
+          border: Border.all(
+            color: isThemed
+                ? Colors.white.withValues(alpha: 0.18)
+                : Colors.white.withValues(alpha: 0.72),
+          ),
+          boxShadow: isThemed
+              ? [AppColors.buttonShadow]
+              : [AppColors.cardShadow],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -757,14 +1096,22 @@ class _FeaturedOfferCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: 60,
+                  height: 35,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
+                    color: logoPath == null
+                        ? color.withValues(alpha: 0.12)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, color: color, size: 22),
+                  clipBehavior: Clip.antiAlias,
+                  child: logoPath == null
+                      ? Icon(icon, color: color, size: 22)
+                      : Padding(
+                          padding: const EdgeInsets.all(5),
+                          child: Image.asset(logoPath!, fit: BoxFit.contain),
+                        ),
                 ),
                 const Spacer(),
                 Container(
@@ -773,13 +1120,15 @@ class _FeaturedOfferCard extends StatelessWidget {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.10),
+                    color: isThemed
+                        ? Colors.white.withValues(alpha: 0.18)
+                        : color.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     badge,
                     style: TextStyle(
-                      color: color,
+                      color: isThemed ? Colors.white : color,
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
                     ),
@@ -792,8 +1141,8 @@ class _FeaturedOfferCard extends StatelessWidget {
               brand,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textDark,
+              style: TextStyle(
+                color: foregroundColor,
                 fontSize: 18,
                 fontWeight: FontWeight.w900,
               ),
@@ -803,8 +1152,8 @@ class _FeaturedOfferCard extends StatelessWidget {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textMid,
+              style: TextStyle(
+                color: subtitleColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -818,7 +1167,7 @@ class _FeaturedOfferCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: color,
+                      color: rateColor,
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
                     ),
@@ -830,13 +1179,13 @@ class _FeaturedOfferCard extends StatelessWidget {
                     vertical: 7,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.textDark,
+                    color: isThemed ? Colors.white : AppColors.textDark,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Shop',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: isThemed ? themeColor : Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.w900,
                     ),
@@ -858,6 +1207,7 @@ class _StoreCard extends StatelessWidget {
     required this.category,
     required this.rate,
     required this.color,
+    this.logoPath,
     required this.onTap,
   });
 
@@ -866,6 +1216,7 @@ class _StoreCard extends StatelessWidget {
   final String category;
   final String rate;
   final Color color;
+  final String? logoPath;
   final VoidCallback onTap;
 
   @override
@@ -889,17 +1240,25 @@ class _StoreCard extends StatelessWidget {
               height: 44,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
+                color: logoPath == null
+                    ? color.withValues(alpha: 0.12)
+                    : Colors.white,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Text(
-                code,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+              clipBehavior: Clip.antiAlias,
+              child: logoPath == null
+                  ? Text(
+                      code,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.all(5),
+                      child: Image.asset(logoPath!, fit: BoxFit.contain),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1098,6 +1457,202 @@ class _StepTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: AppColors.textSoft, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DrawerMenuItemData {
+  const _DrawerMenuItemData({
+    required this.label,
+    required this.icon,
+    this.isActive = false,
+    this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isActive;
+  final VoidCallback? onTap;
+}
+
+class _ProfileImageOrInitials extends StatelessWidget {
+  const _ProfileImageOrInitials({
+    required this.initials,
+    required this.imageUrl,
+    required this.size,
+    required this.fontSize,
+  });
+
+  final String initials;
+  final String imageUrl;
+  final double size;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl.trim().isNotEmpty;
+
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        shape: BoxShape.circle,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: hasImage
+          ? Image.network(
+              imageUrl,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _ProfileInitialsLabel(
+                  initials: initials,
+                  fontSize: fontSize,
+                );
+              },
+            )
+          : _ProfileInitialsLabel(initials: initials, fontSize: fontSize),
+    );
+  }
+}
+
+class _ProfileInitialsLabel extends StatelessWidget {
+  const _ProfileInitialsLabel({
+    required this.initials,
+    required this.fontSize,
+  });
+
+  final String initials;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      initials,
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: fontSize,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _DrawerMenuRow extends StatelessWidget {
+  const _DrawerMenuRow({required this.item});
+
+  final _DrawerMenuItemData item;
+
+  @override
+  Widget build(BuildContext context) {
+    final foregroundColor = item.isActive
+        ? AppColors.primary
+        : AppColors.textMid;
+    final backgroundColor = item.isActive
+        ? AppColors.primary.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.34);
+    final iconBackgroundColor = item.isActive
+        ? AppColors.primary.withValues(alpha: 0.16)
+        : Colors.white.withValues(alpha: 0.70);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: item.onTap,
+      child: Container(
+        height: 52,
+        padding: const EdgeInsets.only(left: 8, right: 12),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: item.isActive
+                ? AppColors.primary.withValues(alpha: 0.12)
+                : Colors.white.withValues(alpha: 0.44),
+          ),
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 4,
+              height: item.isActive ? 24 : 0,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(width: 9),
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: iconBackgroundColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(item.icon, color: foregroundColor, size: 19),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: item.isActive ? AppColors.textDark : AppColors.textMid,
+                  fontSize: 14,
+                  fontWeight: item.isActive ? FontWeight.w900 : FontWeight.w700,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: foregroundColor.withValues(
+                alpha: item.isActive ? 0.75 : 0.45,
+              ),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModernMenuIcon extends StatelessWidget {
+  const _ModernMenuIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 22,
+      height: 18,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 18,
+            height: 2,
+            decoration: BoxDecoration(
+              color: AppColors.textDark,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: 13,
+            height: 2,
+            decoration: BoxDecoration(
+              color: AppColors.textDark,
+              borderRadius: BorderRadius.circular(999),
+            ),
           ),
         ],
       ),
