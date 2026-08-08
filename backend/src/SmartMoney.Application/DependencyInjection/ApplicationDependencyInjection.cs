@@ -19,6 +19,7 @@ using SmartMoney.Application.Features.Offers.GetOfferDetails;
 using SmartMoney.Application.Features.Offers.GetOffers;
 using SmartMoney.Application.Features.Search;
 using SmartMoney.Application.Features.Stores.GetStoreDetails;
+using SmartMoney.Application.Features.Stores.GetStoreOffers;
 using SmartMoney.Application.Features.Stores.GetStores;
 using SmartMoney.Application.Features.Stores.GetStoresByCategory;
 
@@ -62,6 +63,8 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IQueryHandler<GetOfferDetailsQuery,OfferDetailsResponse?>,GetOfferDetailsQueryHandler>();
 
         services.AddScoped<IQueryHandler<SearchQuery,SearchResultResponse>,SearchQueryHandler>();
+
+        services.AddScoped<IQueryHandler<GetStoreOffersQuery,IReadOnlyList<OfferListItemResponse>>,GetStoreOffersQueryHandler>();
 
         return services;
     }

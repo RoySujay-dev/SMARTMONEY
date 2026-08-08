@@ -80,4 +80,24 @@ public sealed class OfferRepository : IOfferRepository
             .ThenBy(offer => offer.Title)
             .ToListAsync(cancellationToken);
     }
+    public async Task<IReadOnlyList<Offer>> GetActiveByStoreSlugAsync(string storeSlug,CancellationToken cancellationToken = default)
+    {
+        var currentTime = DateTime.UtcNow;
+
+        return await _dbContext.Offers
+            .AsNoTracking()
+            .Include(offer => offer.Store)
+            .Where(offer =>
+                offer.IsActive &&
+                offer.Store.IsActive &&
+                offer.Store.Slug == storeSlug &&
+                (!offer.StartAt.HasValue ||
+                    offer.StartAt.Value <= currentTime) &&
+                (!offer.EndAt.HasValue ||
+                    offer.EndAt.Value >= currentTime))
+            .OrderByDescending(offer => offer.IsFeatured)
+            .ThenBy(offer => offer.Priority)
+            .ThenBy(offer => offer.Title)
+            .ToListAsync(cancellationToken);
+    }
 }
