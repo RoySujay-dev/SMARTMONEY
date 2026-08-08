@@ -6,6 +6,7 @@ using SmartMoney.Application.Contracts.Identity.RefreshToken;
 using SmartMoney.Application.Contracts.Identity.Register;
 using SmartMoney.Application.Contracts.Identity.ResendEmailOtp;
 using SmartMoney.Application.Contracts.Identity.VerifyEmailOtp;
+using SmartMoney.Application.Contracts.Offers;
 using SmartMoney.Application.Contracts.Stores;
 using SmartMoney.Application.Features.Categories.GetCategories;
 using SmartMoney.Application.Features.Identity.Login;
@@ -13,6 +14,7 @@ using SmartMoney.Application.Features.Identity.RefreshToken;
 using SmartMoney.Application.Features.Identity.Register;
 using SmartMoney.Application.Features.Identity.ResendEmailOtp;
 using SmartMoney.Application.Features.Identity.VerifyEmailOtp;
+using SmartMoney.Application.Features.Offers.GetOffers;
 using SmartMoney.Application.Features.Stores.GetStoreDetails;
 using SmartMoney.Application.Features.Stores.GetStores;
 using SmartMoney.Application.Features.Stores.GetStoresByCategory;
@@ -51,6 +53,8 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IQueryHandler<GetStoresByCategoryQuery,IReadOnlyList<StoreListItemResponse>>,GetStoresByCategoryQueryHandler>();
 
         services.AddScoped<IQueryHandler<GetStoreDetailsQuery,StoreDetailsResponse?>,GetStoreDetailsQueryHandler>();
+
+        services.AddScoped<IQueryHandler<GetOffersQuery,IReadOnlyList<OfferListItemResponse>>,GetOffersQueryHandler>();
 
         return services;
     }

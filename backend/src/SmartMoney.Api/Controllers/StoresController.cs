@@ -10,7 +10,7 @@ namespace SmartMoney.Api.Controllers;
 [Route("api/stores")]
 public sealed class StoresController : ControllerBase
 
-{
+{ 
     private readonly IQueryHandler <GetStoresQuery,IReadOnlyList <StoreListItemResponse>> _getStoresHandler;
 
     private readonly IQueryHandler <GetStoreDetailsQuery, StoreDetailsResponse?> _getStoreDetailsHandler;
