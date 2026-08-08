@@ -3,6 +3,4 @@ using SmartMoney.Application.Contracts.Stores;
 
 namespace SmartMoney.Application.Features.Stores.GetStoreDetails;
 
-public sealed record GetStoreDetailsQuery(
-    string Slug)
-    : IQuery<StoreDetailsResponse?>;
+public sealed record GetStoreDetailsQuery(string Slug) : IQuery<StoreDetailsResponse?>;

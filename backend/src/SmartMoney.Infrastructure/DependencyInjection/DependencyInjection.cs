@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IEmailVerificationOtpRepository,EmailVerificationOtpRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IStoreRepository, StoreRepository>();
+        services.AddScoped<IOfferRepository, OfferRepository>();
 
         services.AddScoped<IUnitOfWork>(serviceProvider =>
             serviceProvider.GetRequiredService<SmartMoneyDbContext>());
