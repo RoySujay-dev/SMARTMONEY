@@ -44,4 +44,20 @@ public sealed class StoreRepository : IStoreRepository
             .AsNoTracking()
             .FirstOrDefaultAsync (store => store.IsActive && store.Slug == slug, cancellationToken);
     }
+    public async Task<IReadOnlyList<Store>> SearchAsync(string searchTerm, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Stores
+            .AsNoTracking()
+            .Where(store => store.IsActive &&
+                (
+                    EF.Functions.ILike(store.Name, $"%{searchTerm}%") ||
+                    EF.Functions.ILike(store.Slug, $"%{searchTerm}%") ||
+                    (
+                        store.ShortDescription != null && EF.Functions.ILike(store.ShortDescription,$"%{searchTerm}%")
+                    )
+                ))
+            .OrderBy(store => store.DisplayOrder)
+            .ThenBy(store => store.Name)
+            .ToListAsync(cancellationToken);
+    }
 }
