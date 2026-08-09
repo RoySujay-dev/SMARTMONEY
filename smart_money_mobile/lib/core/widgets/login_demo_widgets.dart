@@ -27,6 +27,7 @@ class LoginDemoGlassCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(30),
     this.borderRadius = 25,
     this.width,
+    this.enableBlur = true,
   });
 
   final Widget child;
@@ -34,23 +35,35 @@ class LoginDemoGlassCard extends StatelessWidget {
   final double borderRadius;
   final double? width;
 
+  /// Set to false inside scrolling content.
+  ///
+  /// [BackdropFilter] re-blurs everything painted behind the card on *every
+  /// frame*, which is the single most expensive thing you can put inside a
+  /// scroll view. The card keeps its translucent fill either way, so the look
+  /// is nearly identical over the app's gradient background.
+  final bool enableBlur;
+
   @override
   Widget build(BuildContext context) {
+    final card = Container(
+      width: width,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: enableBlur ? 0.80 : 0.86),
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
+        boxShadow: [AppColors.cardShadow],
+      ),
+      child: child,
+    );
+
+    if (!enableBlur) return card;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          width: width,
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.80),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
-            boxShadow: [AppColors.cardShadow],
-          ),
-          child: child,
-        ),
+        child: card,
       ),
     );
   }
