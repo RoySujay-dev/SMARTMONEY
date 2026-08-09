@@ -55,6 +55,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("FlutterWeb");
 
+// Serves catalogue media (store logos/banners, offer images) from wwwroot,
+// e.g. wwwroot/media/stores/myntra.png -> /media/stores/myntra.png.
+// Registered after UseCors so the Flutter web client can decode the images.
+app.UseStaticFiles();
+
 app.UseHttpsRedirection();
 
 app.UseAuthentication();

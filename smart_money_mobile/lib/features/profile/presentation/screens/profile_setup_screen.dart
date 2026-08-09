@@ -455,6 +455,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget _buildCashbackSummary() {
     return LoginDemoGlassCard(
       borderRadius: 22,
+      // Blur disabled: these cards live inside the scroll view.
+      enableBlur: false,
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -507,6 +509,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget _buildAccountCard(ProfileResponse? profile) {
     return LoginDemoGlassCard(
       borderRadius: 22,
+      // Blur disabled: these cards live inside the scroll view.
+      enableBlur: false,
       padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -558,6 +562,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget _buildSecurityCard() {
     return LoginDemoGlassCard(
       borderRadius: 22,
+      // Blur disabled: these cards live inside the scroll view.
+      enableBlur: false,
       padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -604,6 +610,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget _buildSupportCard() {
     return LoginDemoGlassCard(
       borderRadius: 22,
+      // Blur disabled: these cards live inside the scroll view.
+      enableBlur: false,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -641,6 +649,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget _buildLogoutCard() {
     return LoginDemoGlassCard(
       borderRadius: 22,
+      // Blur disabled: these cards live inside the scroll view.
+      enableBlur: false,
       padding: const EdgeInsets.all(16),
       child: OutlinedButton.icon(
         onPressed: _logout,

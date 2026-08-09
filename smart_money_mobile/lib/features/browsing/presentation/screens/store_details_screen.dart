@@ -1,0 +1,537 @@
+import 'package:flutter/material.dart';
+
+import '../../../../app/routes/route_names.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/network/api_exception.dart';
+import '../../../../core/utils/external_link.dart';
+import '../../../../core/widgets/error_view.dart';
+import '../../../../core/widgets/login_demo_widgets.dart';
+import '../../../../core/widgets/loading_view.dart';
+import '../../../../core/widgets/network_image_with_fallback.dart';
+import '../../../../core/widgets/view_state.dart';
+import '../../data/models/offer_list_item.dart';
+import '../../data/models/store_details.dart';
+import '../../data/services/browsing_api_service.dart';
+import '../widgets/offer_card.dart';
+
+/// Store details from `GET /api/stores/{slug}` plus that store's offers from
+/// `GET /api/stores/{slug}/offers`. Tapping an offer opens its details.
+class StoreDetailsScreen extends StatefulWidget {
+  const StoreDetailsScreen({super.key, required this.storeSlug});
+
+  final String storeSlug;
+
+  @override
+  State<StoreDetailsScreen> createState() => _StoreDetailsScreenState();
+}
+
+class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
+  final BrowsingApiService _service = BrowsingApiService();
+
+  ViewState _detailsState = ViewState.initial;
+  StoreDetails? _details;
+  String _detailsError = '';
+  bool _isLoadingDetails = false;
+
+  ViewState _offersState = ViewState.initial;
+  List<OfferListItem> _offers = const [];
+  String _offersError = '';
+  bool _isLoadingOffers = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAll();
+  }
+
+  @override
+  void dispose() {
+    _service.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAll() async {
+    await _loadDetails();
+    if (!mounted) return;
+    if (_detailsState == ViewState.success) {
+      await _loadOffers();
+    }
+  }
+
+  Future<void> _loadDetails() async {
+    if (_isLoadingDetails) return;
+    _isLoadingDetails = true;
+
+    setState(() => _detailsState = ViewState.loading);
+
+    try {
+      final details = await _service.getStoreDetails(widget.storeSlug);
+      if (!mounted) return;
+      setState(() {
+        _details = details;
+        _detailsState = ViewState.success;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _detailsError = e.message;
+        _detailsState = ViewState.error;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _detailsError = 'Something went wrong. Please try again.';
+        _detailsState = ViewState.error;
+      });
+    } finally {
+      _isLoadingDetails = false;
+    }
+  }
+
+  Future<void> _loadOffers() async {
+    if (_isLoadingOffers) return;
+    _isLoadingOffers = true;
+
+    setState(() => _offersState = ViewState.loading);
+
+    try {
+      final offers = await _service.getStoreOffers(widget.storeSlug);
+      if (!mounted) return;
+      setState(() {
+        _offers = offers;
+        _offersState = offers.isEmpty ? ViewState.empty : ViewState.success;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _offersError = e.message;
+        _offersState = ViewState.error;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _offersError = 'Could not load offers. Please try again.';
+        _offersState = ViewState.error;
+      });
+    } finally {
+      _isLoadingOffers = false;
+    }
+  }
+
+  void _openOffer(OfferListItem offer) {
+    Navigator.pushNamed(
+      context,
+      RouteNames.offerDetails,
+      arguments: offer.slug,
+    );
+  }
+
+  /// Sends the user to the store's own website.
+  ///
+  /// Affiliate link generation and click tracking (Cuelinks) are a later
+  /// milestone — this is a direct redirect to [StoreDetails.websiteUrl].
+  Future<void> _onEarnCashbackPressed() async {
+    final website = _details?.websiteUrl;
+    final opened = await ExternalLink.open(website);
+
+    if (!mounted || opened) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not open the store website.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(_details?.name ?? 'Store')),
+      body: LoginDemoBackground(
+        child: SafeArea(top: false, child: _buildBody()),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    switch (_detailsState) {
+      case ViewState.initial:
+      case ViewState.loading:
+        return const LoadingView(message: 'Loading store...');
+      case ViewState.error:
+        return ErrorView(message: _detailsError, onRetry: _loadAll);
+      case ViewState.empty:
+      case ViewState.success:
+        final details = _details;
+        if (details == null) {
+          return ErrorView(message: 'Store not found.', onRetry: _loadAll);
+        }
+        return RefreshIndicator(
+          onRefresh: _loadAll,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+            children: [
+              _StoreHeader(
+                details: details,
+                onEarnCashback: _onEarnCashbackPressed,
+              ),
+              const SizedBox(height: 20),
+              const _SectionTitle(title: 'Offers'),
+              const SizedBox(height: 12),
+              _buildOffersSection(),
+            ],
+          ),
+        );
+    }
+  }
+
+  Widget _buildOffersSection() {
+    switch (_offersState) {
+      case ViewState.initial:
+      case ViewState.loading:
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: LoadingView(message: 'Loading offers...'),
+        );
+      case ViewState.error:
+        return _InlineNotice(
+          icon: Icons.cloud_off_rounded,
+          iconColor: AppColors.danger,
+          title: 'Could not load offers',
+          message: _offersError,
+          actionLabel: 'Try again',
+          onAction: _loadOffers,
+        );
+      case ViewState.empty:
+        return const _InlineNotice(
+          icon: Icons.local_offer_outlined,
+          iconColor: AppColors.primary,
+          title: 'No active offers',
+          message: 'This store has no active offers right now.',
+        );
+      case ViewState.success:
+        return Column(
+          children: [
+            for (final offer in _offers) ...[
+              OfferCard(offer: offer, onTap: () => _openOffer(offer)),
+              const SizedBox(height: 14),
+            ],
+          ],
+        );
+    }
+  }
+}
+
+class _StoreHeader extends StatelessWidget {
+  const _StoreHeader({required this.details, required this.onEarnCashback});
+
+  final StoreDetails details;
+  final VoidCallback onEarnCashback;
+
+  @override
+  Widget build(BuildContext context) {
+    final shortDescription = details.shortDescription?.trim() ?? '';
+    final description = details.description?.trim() ?? '';
+    final cashback = details.defaultCashbackText?.trim() ?? '';
+    final website = details.websiteUrl.trim();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.70)),
+        boxShadow: [AppColors.cardShadow],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 7,
+            child: NetworkImageWithFallback(
+              url: details.bannerUrl,
+              fallbackIcon: Icons.image_outlined,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.10),
+              iconColor: AppColors.primary,
+              iconSize: 34,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: NetworkImageWithFallback(
+                        url: details.logoUrl,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.contain,
+                        fallbackIcon: Icons.storefront_outlined,
+                        backgroundColor: Colors.white,
+                        iconColor: AppColors.primary,
+                        iconSize: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            details.name,
+                            style: const TextStyle(
+                              color: AppColors.textDark,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          if (shortDescription.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              shortDescription,
+                              style: const TextStyle(
+                                color: AppColors.textMid,
+                                fontSize: 13,
+                                height: 1.35,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (cashback.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppColors.success.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.savings_rounded,
+                          color: AppColors.success,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Cashback rate',
+                                style: TextStyle(
+                                  color: AppColors.textSoft,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                cashback,
+                                style: const TextStyle(
+                                  color: AppColors.success,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (details.isFeatured) ...[
+                  const SizedBox(height: 12),
+                  _Pill(
+                    icon: Icons.star_rounded,
+                    label: 'Featured store',
+                    color: AppColors.warning,
+                  ),
+                ],
+                // Only offered when the store actually has a launchable site.
+                if (ExternalLink.parse(details.websiteUrl) != null) ...[
+                  const SizedBox(height: 16),
+                  LoginDemoGradientButton(
+                    label: 'Earn Cashback',
+                    icon: Icons.open_in_new_rounded,
+                    onPressed: onEarnCashback,
+                  ),
+                ],
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const _SectionTitle(title: 'About'),
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      color: AppColors.textMid,
+                      fontSize: 13,
+                      height: 1.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                if (website.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.language_rounded,
+                        color: AppColors.textSoft,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          website,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textSoft,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: AppColors.textDark,
+        fontSize: 17,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.icon, required this.label, required this.color});
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineNotice extends StatelessWidget {
+  const _InlineNotice({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: iconColor, size: 28),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.textDark,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.textMid,
+              fontSize: 12,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: onAction,
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: Text(actionLabel!),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

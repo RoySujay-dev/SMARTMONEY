@@ -2,11 +2,26 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/routes/route_names.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/widgets/login_demo_widgets.dart';
+import '../../../../core/widgets/network_image_with_fallback.dart';
+import '../../../../core/widgets/view_state.dart';
+import '../../../browsing/data/models/category.dart';
+import '../../../browsing/data/models/offer_list_item.dart';
+import '../../../browsing/data/models/store_list_item.dart';
+import '../../../browsing/data/services/browsing_api_service.dart';
+import '../../../browsing/presentation/widgets/category_circle_tile.dart';
+import '../../../browsing/presentation/widgets/promo_carousel.dart';
+import '../../../browsing/presentation/widgets/store_card.dart';
 import '../../../profile/data/services/profile_api_service.dart';
+import '../../../shell/presentation/screens/main_shell.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({super.key, this.onSelectTab});
+
+  /// Provided by [MainShell] so "see all" actions switch bottom-nav tabs
+  /// instead of pushing a duplicate screen on top of the shell.
+  final void Function(ShellTab tab)? onSelectTab;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -14,6 +29,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final _profileApiService = ProfileApiService();
+  final BrowsingApiService _browsingApiService = BrowsingApiService();
+
   String _profileInitials = 'SM';
   String _profileName = 'SmartMoney User';
   String _profileEmail = '';
@@ -22,43 +39,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isDrawerOpen = false;
   String _selectedDrawerItem = 'Dashboard';
 
-  final List<Map<String, Object>> _categories = const [
-    {
-      'label': 'Fashion',
-      'icon': Icons.checkroom_outlined,
-      'color': Color(0xFFEC4899),
-    },
-    {
-      'label': 'Food',
-      'icon': Icons.restaurant_outlined,
-      'color': AppColors.warning,
-    },
-    {
-      'label': 'Travel',
-      'icon': Icons.flight_takeoff_outlined,
-      'color': AppColors.info,
-    },
-    {
-      'label': 'Grocery',
-      'icon': Icons.local_grocery_store_outlined,
-      'color': AppColors.success,
-    },
-    {
-      'label': 'Electronics',
-      'icon': Icons.devices_outlined,
-      'color': AppColors.primary,
-    },
-  ];
+  // Browsing data (real backend data — no hardcoded brands).
+  ViewState _categoriesState = ViewState.initial;
+  List<Category> _categories = const [];
+  String _categoriesError = '';
+  bool _isLoadingCategories = false;
+
+  ViewState _offersState = ViewState.initial;
+  List<OfferListItem> _offers = const [];
+  String _offersError = '';
+  bool _isLoadingOffers = false;
+
+  ViewState _storesState = ViewState.initial;
+  List<StoreListItem> _stores = const [];
+  String _storesError = '';
+  bool _isLoadingStores = false;
+
+  static const int _dashboardItemLimit = 10;
 
   @override
   void initState() {
     super.initState();
     _loadProfileSummary();
+    _loadCategories();
+    _loadOffers();
+    _loadStores();
   }
 
   @override
   void dispose() {
     _profileApiService.dispose();
+    _browsingApiService.dispose();
     super.dispose();
   }
 
@@ -78,6 +89,123 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (_) {
       // Keep the default profile chip if the session is missing or expired.
     }
+  }
+
+  Future<void> _loadCategories() async {
+    if (_isLoadingCategories) return;
+    _isLoadingCategories = true;
+    setState(() => _categoriesState = ViewState.loading);
+
+    try {
+      final categories = await _browsingApiService.getCategories();
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _categoriesState =
+            categories.isEmpty ? ViewState.empty : ViewState.success;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _categoriesError = e.message;
+        _categoriesState = ViewState.error;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _categoriesError = 'Could not load categories.';
+        _categoriesState = ViewState.error;
+      });
+    } finally {
+      _isLoadingCategories = false;
+    }
+  }
+
+  Future<void> _loadOffers() async {
+    if (_isLoadingOffers) return;
+    _isLoadingOffers = true;
+    setState(() => _offersState = ViewState.loading);
+
+    try {
+      final offers = await _browsingApiService.getOffers();
+      if (!mounted) return;
+      setState(() {
+        _offers = offers;
+        _offersState = offers.isEmpty ? ViewState.empty : ViewState.success;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _offersError = e.message;
+        _offersState = ViewState.error;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _offersError = 'Could not load offers.';
+        _offersState = ViewState.error;
+      });
+    } finally {
+      _isLoadingOffers = false;
+    }
+  }
+
+  Future<void> _loadStores() async {
+    if (_isLoadingStores) return;
+    _isLoadingStores = true;
+    setState(() => _storesState = ViewState.loading);
+
+    try {
+      final stores = await _browsingApiService.getStores();
+      if (!mounted) return;
+      setState(() {
+        _stores = stores;
+        _storesState = stores.isEmpty ? ViewState.empty : ViewState.success;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _storesError = e.message;
+        _storesState = ViewState.error;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _storesError = 'Could not load stores.';
+        _storesState = ViewState.error;
+      });
+    } finally {
+      _isLoadingStores = false;
+    }
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      _loadProfileSummary(),
+      _loadCategories(),
+      _loadOffers(),
+      _loadStores(),
+    ]);
+  }
+
+  /// Offers to feature: prioritize `isFeatured`, then fall back to the rest.
+  List<OfferListItem> get _featuredOffers {
+    final featured = _offers.where((o) => o.isFeatured).toList();
+    final ordered = [
+      ...featured,
+      ..._offers.where((o) => !o.isFeatured),
+    ];
+    return ordered.take(_dashboardItemLimit).toList();
+  }
+
+  /// Stores to surface: prioritize `isFeatured`, then fall back to the rest.
+  List<StoreListItem> get _popularStores {
+    final featured = _stores.where((s) => s.isFeatured).toList();
+    final ordered = [
+      ...featured,
+      ..._stores.where((s) => !s.isFeatured),
+    ];
+    return ordered.take(_dashboardItemLimit).toList();
   }
 
   String _initials(String name) {
@@ -108,96 +236,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return '${_profileApiService.baseUrl}$imageUrl';
   }
 
-  final List<Map<String, Object>> _featuredOffers = const [
-    {
-      'brand': 'Flipkart',
-      'title': 'Big Save Days',
-      'rate': 'Up to 8%',
-      'badge': 'Hot',
-      'icon': Icons.shopping_bag_outlined,
-      'color': AppColors.primary,
-      'logoPath': 'assets/images/brands/flipkart.png',
-      'themeColor': Color(0xFF2874F0),
-    },
-    {
-      'brand': 'Myntra',
-      'title': 'Fashion weekend',
-      'rate': '12%',
-      'badge': 'Best rate',
-      'icon': Icons.checkroom_outlined,
-      'color': Color(0xFFEC4899),
-      'logoPath': 'assets/images/brands/myntra.png',
-      'themeColor': Color(0xFFEC4899),
-    },
-    {
-      'brand': 'Swiggy',
-      'title': 'Food orders',
-      'rate': '5%',
-      'badge': 'Popular',
-      'icon': Icons.restaurant_outlined,
-      'color': AppColors.warning,
-      'logoPath': 'assets/images/brands/swiggy.png',
-      'themeColor': Color(0xFFFC8019),
-    },
-  ];
+  void _openCategories() {
+    Navigator.pushNamed(context, RouteNames.categories);
+  }
 
-  final List<Map<String, Object>> _stores = const [
-    {
-      'name': 'Flipkart',
-      'code': 'FK',
-      'category': 'Electronics',
-      'rate': 'Up to 8%',
-      'color': AppColors.primary,
-      'logoPath': 'assets/images/brands/flipkart.png',
-    },
-    {
-      'name': 'Amazon',
-      'code': 'AZ',
-      'category': 'Marketplace',
-      'rate': '6.5%',
-      'color': AppColors.info,
-      'logoPath': 'assets/images/brands/amazon.webp',
-    },
-    {
-      'name': 'Myntra',
-      'code': 'MN',
-      'category': 'Fashion',
-      'rate': '12%',
-      'color': Color(0xFFEC4899),
-      'logoPath': 'assets/images/brands/myntra.png',
-    },
-    {
-      'name': 'MakeMyTrip',
-      'code': 'MT',
-      'category': 'Travel',
-      'rate': '9%',
-      'color': AppColors.success,
-    },
-  ];
+  void _openStores() {
+    final selectTab = widget.onSelectTab;
+    if (selectTab != null) {
+      selectTab(ShellTab.stores);
+      return;
+    }
+    Navigator.pushNamed(context, RouteNames.stores);
+  }
 
-  final List<Map<String, Object>> _recommendations = const [
-    {
-      'title': 'Highest cashback today',
-      'store': 'Myntra',
-      'rate': '12%',
-      'icon': Icons.trending_up_rounded,
-      'color': Color(0xFFEC4899),
-    },
-    {
-      'title': 'Trending with shoppers',
-      'store': 'Flipkart',
-      'rate': 'Up to 8%',
-      'icon': Icons.local_fire_department_rounded,
-      'color': AppColors.warning,
-    },
-    {
-      'title': 'Travel pick',
-      'store': 'MakeMyTrip',
-      'rate': '9%',
-      'icon': Icons.flight_takeoff_rounded,
-      'color': AppColors.info,
-    },
-  ];
+  void _openOffers() {
+    final selectTab = widget.onSelectTab;
+    if (selectTab != null) {
+      selectTab(ShellTab.offers);
+      return;
+    }
+    Navigator.pushNamed(context, RouteNames.offers);
+  }
+
+  void _openSearch() {
+    final selectTab = widget.onSelectTab;
+    if (selectTab != null) {
+      selectTab(ShellTab.search);
+      return;
+    }
+    Navigator.pushNamed(context, RouteNames.search);
+  }
+
+  void _openCategory(Category category) {
+    Navigator.pushNamed(
+      context,
+      RouteNames.categoryStores,
+      arguments: category,
+    );
+  }
+
+  void _openStore(StoreListItem store) {
+    Navigator.pushNamed(context, RouteNames.storeDetails, arguments: store.slug);
+  }
+
+  void _openOffer(OfferListItem offer) {
+    Navigator.pushNamed(context, RouteNames.offerDetails, arguments: offer.slug);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -206,30 +290,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           LoginDemoBackground(
             child: SafeArea(
-              child: CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(child: _buildTopbar()),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        _buildDiscoveryHero(),
-                        const SizedBox(height: 12),
-                        _buildSearchBar(),
-                        const SizedBox(height: 16),
-                        _buildCategoryStrip(),
-                        const SizedBox(height: 16),
-                        _buildFeaturedOffers(),
-                        const SizedBox(height: 16),
-                        _buildPopularStores(),
-                        const SizedBox(height: 16),
-                        _buildRecommendedDeals(),
-                        const SizedBox(height: 16),
-                        _buildHowItWorks(),
-                      ]),
+              child: RefreshIndicator(
+                onRefresh: _refreshAll,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(child: _buildTopbar()),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          _buildSearchBar(),
+                          const SizedBox(height: 16),
+                          _buildHeroSection(),
+                          const SizedBox(height: 18),
+                          _buildCategoryStrip(),
+                          const SizedBox(height: 16),
+                          _buildFeaturedOffersSection(),
+                          const SizedBox(height: 16),
+                          _buildPopularStoresSection(),
+                          const SizedBox(height: 16),
+                          _buildHowItWorks(),
+                        ]),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -441,19 +527,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         label: 'Stores',
         icon: Icons.storefront_outlined,
         isActive: _selectedDrawerItem == 'Stores',
-        onTap: () => _selectDrawerItem('Stores'),
+        onTap: () => _selectDrawerItem('Stores', destination: _openStores),
       ),
       _DrawerMenuItemData(
         label: 'Offers',
         icon: Icons.local_offer_outlined,
         isActive: _selectedDrawerItem == 'Offers',
-        onTap: () => _selectDrawerItem('Offers'),
+        onTap: () => _selectDrawerItem('Offers', destination: _openOffers),
       ),
       _DrawerMenuItemData(
         label: 'Categories',
         icon: Icons.grid_view_rounded,
         isActive: _selectedDrawerItem == 'Categories',
-        onTap: () => _selectDrawerItem('Categories'),
+        onTap: () =>
+            _selectDrawerItem('Categories', destination: _openCategories),
       ),
       _DrawerMenuItemData(
         label: 'Withdraw',
@@ -496,20 +583,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _selectDrawerItem(
     String label, {
     bool openProfile = false,
+    VoidCallback? destination,
   }) async {
     setState(() {
       _selectedDrawerItem = label;
     });
 
-    if (!openProfile) {
+    if (openProfile) {
+      await Future<void>.delayed(const Duration(milliseconds: 160));
+      if (!mounted) return;
+      _openProfileFromDrawer();
       return;
     }
 
-    await Future<void>.delayed(const Duration(milliseconds: 160));
-
-    if (!mounted) return;
-
-    _openProfileFromDrawer();
+    if (destination != null) {
+      _closeDrawer();
+      await Future<void>.delayed(const Duration(milliseconds: 160));
+      if (!mounted) return;
+      destination();
+    }
   }
 
   void _openProfileFromDrawer() {
@@ -565,7 +657,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               if (!isCompact) ...[
-                // _buildTopbarIcon(Icons.notifications_none_rounded),
                 const SizedBox(width: 10),
               ],
               _buildProfileSection(),
@@ -590,19 +681,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
-  // Widget _buildTopbarIcon(IconData icon) {
-  //   return Container(
-  //     width: 42,
-  //     height: 42,
-  //     decoration: BoxDecoration(
-  //       color: Colors.white.withValues(alpha: 0.70),
-  //       borderRadius: BorderRadius.circular(14),
-  //       border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
-  //     ),
-  //     child: Icon(icon, color: AppColors.textMid),
-  //   );
-  // }
 
   Widget _buildProfileSection() {
     return InkWell(
@@ -641,108 +719,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _showDashboardMessage(String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label will be available soon')));
+  Widget _buildHeroSection() {
+    switch (_offersState) {
+      case ViewState.initial:
+      case ViewState.loading:
+        return const SizedBox(height: 172, child: _SectionLoading());
+      case ViewState.error:
+        return SizedBox(
+          height: 172,
+          child: _SectionInlineError(
+            message: _offersError,
+            onRetry: _loadOffers,
+          ),
+        );
+      case ViewState.empty:
+        return _buildWelcomeBanner();
+      case ViewState.success:
+        return PromoCarousel(
+          offers: _featuredOffers,
+          onOfferTap: _openOffer,
+        );
+    }
   }
 
-  Widget _buildDiscoveryHero() {
+  /// Shown instead of the carousel when the catalogue has no offers yet.
+  Widget _buildWelcomeBanner() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.70)),
-        boxShadow: [AppColors.cardShadow],
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [AppColors.buttonShadow],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text(
-                        'Top cashback today',
-                        style: TextStyle(
-                          color: AppColors.success,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 13),
-                    const Text(
-                      'Earn up to 12% cashback',
-                      style: TextStyle(
-                        color: AppColors.textDark,
-                        fontSize: 26,
-                        height: 1.12,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Myntra fashion deals are live. Shop through SmartMoney to earn rewards.',
-                      style: TextStyle(
-                        color: AppColors.textMid,
-                        fontSize: 13,
-                        height: 1.35,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [AppColors.buttonShadow],
-                ),
-                child: const Icon(
-                  Icons.shopping_bag_outlined,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-            ],
+          const Text(
+            'Welcome to SmartMoney',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Browse stores and start earning cashback on every purchase.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.88),
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => _showDashboardMessage('Store browsing'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+          FilledButton.icon(
+            onPressed: _openStores,
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              icon: const Icon(Icons.explore_outlined, size: 18),
-              label: const Text(
-                'View Top Offers',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
+            ),
+            icon: const Icon(Icons.storefront_outlined, size: 18),
+            label: const Text(
+              'Browse Stores',
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         ],
@@ -753,7 +797,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildSearchBar() {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () => _showDashboardMessage('Store search'),
+      onTap: _openSearch,
       child: Container(
         height: 52,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -786,107 +830,98 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildCategoryStrip() {
-    return SizedBox(
-      height: 74,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          final category = _categories[index];
-          final color = category['color']! as Color;
-
-          return InkWell(
-            borderRadius: BorderRadius.circular(18),
-            onTap: () => _showDashboardMessage(category['label']! as String),
-            child: Container(
-              width: 118,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.76),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.70)),
-                boxShadow: [AppColors.cardShadow],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      category['icon']! as IconData,
-                      color: color,
-                      size: 19,
-                    ),
-                  ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Text(
-                      category['label']! as String,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textDark,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          title: 'Top Categories',
+          subtitle: 'Browse by what you love',
+          onTap: _openCategories,
+        ),
+        const SizedBox(height: 14),
+        SizedBox(height: 108, child: _buildCategoryStripBody()),
+      ],
     );
   }
 
-  Widget _buildFeaturedOffers() {
+  Widget _buildCategoryStripBody() {
+    switch (_categoriesState) {
+      case ViewState.initial:
+      case ViewState.loading:
+        return const _SectionLoading();
+      case ViewState.error:
+        return _SectionInlineError(
+          message: _categoriesError,
+          onRetry: _loadCategories,
+        );
+      case ViewState.empty:
+        return const _SectionInlineEmpty(message: 'No categories yet');
+      case ViewState.success:
+        return ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: _categories.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 6),
+          itemBuilder: (context, index) {
+            final category = _categories[index];
+            return CategoryCircleTile(
+              category: category,
+              onTap: () => _openCategory(category),
+            );
+          },
+        );
+    }
+  }
+
+  Widget _buildFeaturedOffersSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionHeader(
           title: 'Featured Offers',
           subtitle: 'High-value deals to start earning',
+          onTap: _openOffers,
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 178,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _featuredOffers.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final offer = _featuredOffers[index];
-
-              return _FeaturedOfferCard(
-                brand: offer['brand']! as String,
-                title: offer['title']! as String,
-                rate: offer['rate']! as String,
-                badge: offer['badge']! as String,
-                icon: offer['icon']! as IconData,
-                color: offer['color']! as Color,
-                logoPath: offer['logoPath'] as String?,
-                themeColor: offer['themeColor'] as Color?,
-                onTap: () =>
-                    _showDashboardMessage('${offer['brand']! as String} offer'),
-              );
-            },
-          ),
-        ),
+        SizedBox(height: 190, child: _buildFeaturedOffersBody()),
       ],
     );
   }
 
-  Widget _buildPopularStores() {
+  Widget _buildFeaturedOffersBody() {
+    switch (_offersState) {
+      case ViewState.initial:
+      case ViewState.loading:
+        return const _SectionLoading();
+      case ViewState.error:
+        return _SectionInlineError(
+          message: _offersError,
+          onRetry: _loadOffers,
+        );
+      case ViewState.empty:
+        return const _SectionInlineEmpty(message: 'No offers yet');
+      case ViewState.success:
+        final offers = _featuredOffers;
+        return ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: offers.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 12),
+          itemBuilder: (context, index) {
+            final offer = offers[index];
+            return _DashboardOfferCard(
+              offer: offer,
+              onTap: () => _openOffer(offer),
+            );
+          },
+        );
+    }
+  }
+
+  Widget _buildPopularStoresSection() {
     return LoginDemoGlassCard(
       padding: const EdgeInsets.all(20),
       borderRadius: 20,
+      // Blur disabled: this card lives inside the scroll view.
+      enableBlur: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -896,75 +931,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
             showArrow: false,
           ),
           const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 560;
-              final itemWidth = isWide
-                  ? (constraints.maxWidth - 12) / 2
-                  : constraints.maxWidth;
-
-              return Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: _stores.map((store) {
-                  return SizedBox(
-                    width: itemWidth,
-                    child: _StoreCard(
-                      name: store['name']! as String,
-                      code: store['code']! as String,
-                      category: store['category']! as String,
-                      rate: store['rate']! as String,
-                      color: store['color']! as Color,
-                      logoPath: store['logoPath'] as String?,
-                      onTap: () => _showDashboardMessage(
-                        '${store['name']! as String} store',
-                      ),
-                    ),
-                  );
-                }).toList(),
-              );
-            },
-          ),
+          _buildPopularStoresBody(),
         ],
       ),
     );
   }
 
-  Widget _buildRecommendedDeals() {
-    return LoginDemoGlassCard(
-      padding: const EdgeInsets.all(20),
-      borderRadius: 20,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-            title: 'Recommended Deals',
-            subtitle: 'Useful picks for today',
-            showArrow: false,
+  Widget _buildPopularStoresBody() {
+    switch (_storesState) {
+      case ViewState.initial:
+      case ViewState.loading:
+        return const SizedBox(height: 90, child: _SectionLoading());
+      case ViewState.error:
+        return SizedBox(
+          height: 90,
+          child: _SectionInlineError(
+            message: _storesError,
+            onRetry: _loadStores,
           ),
-          const SizedBox(height: 14),
-          ..._recommendations.map((deal) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _RecommendationRow(
-                title: deal['title']! as String,
-                store: deal['store']! as String,
-                rate: deal['rate']! as String,
-                icon: deal['icon']! as IconData,
-                color: deal['color']! as Color,
-                onTap: () => _showDashboardMessage(deal['store']! as String),
-              ),
+        );
+      case ViewState.empty:
+        return const SizedBox(
+          height: 90,
+          child: _SectionInlineEmpty(message: 'No stores yet'),
+        );
+      case ViewState.success:
+        final stores = _popularStores;
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 560;
+            final itemWidth = isWide
+                ? (constraints.maxWidth - 12) / 2
+                : constraints.maxWidth;
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: stores.map((store) {
+                return SizedBox(
+                  width: itemWidth,
+                  child: StoreCard(
+                    store: store,
+                    onTap: () => _openStore(store),
+                  ),
+                );
+              }).toList(),
             );
-          }),
-        ],
-      ),
-    );
+          },
+        );
+    }
   }
 
   Widget _buildHowItWorks() {
     return LoginDemoGlassCard(
       padding: const EdgeInsets.all(20),
       borderRadius: 20,
+      // Blur disabled: this card lives inside the scroll view.
+      enableBlur: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1010,164 +1033,143 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String title,
     required String subtitle,
     bool showArrow = true,
+    VoidCallback? onTap,
   }) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: AppColors.textDark,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+    return InkWell(
+      onTap: showArrow ? onTap : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textDark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: const TextStyle(color: AppColors.textSoft, fontSize: 12),
-              ),
-            ],
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        if (showArrow)
-          const Icon(Icons.arrow_forward_rounded, color: AppColors.primary),
-      ],
+          if (showArrow)
+            const Icon(Icons.arrow_forward_rounded, color: AppColors.primary),
+        ],
+      ),
     );
   }
 }
 
-class _FeaturedOfferCard extends StatelessWidget {
-  const _FeaturedOfferCard({
-    required this.brand,
-    required this.title,
-    required this.rate,
-    required this.badge,
-    required this.icon,
-    required this.color,
-    this.logoPath,
-    this.themeColor,
-    required this.onTap,
-  });
+class _DashboardOfferCard extends StatelessWidget {
+  const _DashboardOfferCard({required this.offer, required this.onTap});
 
-  final String brand;
-  final String title;
-  final String rate;
-  final String badge;
-  final IconData icon;
-  final Color color;
-  final String? logoPath;
-  final Color? themeColor;
+  final OfferListItem offer;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isThemed = themeColor != null;
-    final foregroundColor = isThemed ? Colors.white : AppColors.textDark;
-    final subtitleColor = isThemed
-        ? Colors.white.withValues(alpha: 0.78)
-        : AppColors.textMid;
-    final rateColor = isThemed ? Colors.white : color;
+    final storeName = offer.storeName.trim();
+    final cashback = offer.cashbackText?.trim() ?? '';
+    final hasCashback = cashback.isNotEmpty;
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: Container(
-        width: 238,
-        padding: const EdgeInsets.all(16),
+        width: 240,
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: themeColor ?? Colors.white.withValues(alpha: 0.82),
+          color: Colors.white.withValues(alpha: 0.82),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isThemed
-                ? Colors.white.withValues(alpha: 0.18)
-                : Colors.white.withValues(alpha: 0.72),
-          ),
-          boxShadow: isThemed
-              ? [AppColors.buttonShadow]
-              : [AppColors.cardShadow],
+          border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
+          boxShadow: [AppColors.cardShadow],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Container(
-                  width: 60,
-                  height: 35,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: logoPath == null
-                        ? color.withValues(alpha: 0.12)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: NetworkImageWithFallback(
+                    url: offer.imageUrl,
+                    width: 60,
+                    height: 40,
+                    fallbackIcon: Icons.local_offer_outlined,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.10),
+                    iconColor: AppColors.primary,
+                    iconSize: 20,
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: logoPath == null
-                      ? Icon(icon, color: color, size: 22)
-                      : Padding(
-                          padding: const EdgeInsets.all(5),
-                          child: Image.asset(logoPath!, fit: BoxFit.contain),
-                        ),
                 ),
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isThemed
-                        ? Colors.white.withValues(alpha: 0.18)
-                        : color.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    badge,
-                    style: TextStyle(
-                      color: isThemed ? Colors.white : color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
+                if (offer.isFeatured)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'Featured',
+                      style: TextStyle(
+                        color: AppColors.warning,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
-            const SizedBox(height: 15),
-            Text(
-              brand,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: foregroundColor,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
+            const SizedBox(height: 13),
+            if (storeName.isNotEmpty)
+              Text(
+                storeName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textDark,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
             const SizedBox(height: 4),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: subtitleColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Text(
+                offer.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textMid,
+                  fontSize: 13,
+                  height: 1.3,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    '$rate cashback',
+                    hasCashback ? cashback : 'View offer',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: rateColor,
+                      color: hasCashback ? AppColors.success : AppColors.primary,
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
                     ),
@@ -1179,284 +1181,74 @@ class _FeaturedOfferCard extends StatelessWidget {
                     vertical: 7,
                   ),
                   decoration: BoxDecoration(
-                    color: isThemed ? Colors.white : AppColors.textDark,
+                    color: AppColors.textDark,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Shop',
                     style: TextStyle(
-                      color: isThemed ? themeColor : Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StoreCard extends StatelessWidget {
-  const _StoreCard({
-    required this.name,
-    required this.code,
-    required this.category,
-    required this.rate,
-    required this.color,
-    this.logoPath,
-    required this.onTap,
-  });
-
-  final String name;
-  final String code;
-  final String category;
-  final String rate;
-  final Color color;
-  final String? logoPath;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.inputFill.withValues(alpha: 0.58),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.inputBorder.withValues(alpha: 0.70),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: logoPath == null
-                    ? color.withValues(alpha: 0.12)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: logoPath == null
-                  ? Text(
-                      code,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset(logoPath!, fit: BoxFit.contain),
-                    ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textDark,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    category,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textSoft,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  rate,
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  color: AppColors.textSoft,
-                  size: 18,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RecommendationRow extends StatelessWidget {
-  const _RecommendationRow({
-    required this.title,
-    required this.store,
-    required this.rate,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String title;
-  final String store;
-  final String rate;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(15),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.54),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(icon, color: color, size: 21),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textDark,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    store,
-                    style: const TextStyle(
-                      color: AppColors.textMid,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              rate,
-              style: TextStyle(
-                color: color,
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StepTile extends StatelessWidget {
-  const _StepTile({
-    required this.number,
-    required this.title,
-    required this.icon,
-  });
-
-  final String number;
-  final String title;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 96,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Icon(icon, color: AppColors.primary, size: 25),
-              Positioned(
-                right: -10,
-                top: -10,
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    number,
-                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLoading extends StatelessWidget {
+  const _SectionLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: SizedBox(
+        width: 26,
+        height: 26,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionInlineError extends StatelessWidget {
+  const _SectionInlineError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_rounded, color: AppColors.textSoft, size: 18),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              message,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textSoft,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 11),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppColors.textSoft, fontSize: 11),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Retry'),
           ),
         ],
       ),
@@ -1464,18 +1256,24 @@ class _StepTile extends StatelessWidget {
   }
 }
 
-class _DrawerMenuItemData {
-  const _DrawerMenuItemData({
-    required this.label,
-    required this.icon,
-    this.isActive = false,
-    this.onTap,
-  });
+class _SectionInlineEmpty extends StatelessWidget {
+  const _SectionInlineEmpty({required this.message});
 
-  final String label;
-  final IconData icon;
-  final bool isActive;
-  final VoidCallback? onTap;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        message,
+        style: const TextStyle(
+          color: AppColors.textSoft,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
 }
 
 class _ProfileImageOrInitials extends StatelessWidget {
@@ -1542,6 +1340,20 @@ class _ProfileInitialsLabel extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DrawerMenuItemData {
+  const _DrawerMenuItemData({
+    required this.label,
+    required this.icon,
+    this.isActive = false,
+    this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isActive;
+  final VoidCallback? onTap;
 }
 
 class _DrawerMenuRow extends StatelessWidget {
@@ -1620,6 +1432,70 @@ class _DrawerMenuRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _StepTile extends StatelessWidget {
+  const _StepTile({
+    required this.number,
+    required this.title,
+    required this.icon,
+  });
+
+  final String number;
+  final String title;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 96,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(icon, color: AppColors.primary, size: 25),
+              Positioned(
+                right: -10,
+                top: -10,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    number,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: AppColors.textSoft, fontSize: 11),
+          ),
+        ],
       ),
     );
   }
