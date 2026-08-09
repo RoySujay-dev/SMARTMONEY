@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/routes/route_names.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/widgets/brand_logo_mark.dart';
 import '../../../../core/widgets/login_demo_widgets.dart';
 import '../../../../core/widgets/network_image_with_fallback.dart';
 import '../../../../core/widgets/view_state.dart';
@@ -290,32 +291,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           LoginDemoBackground(
             child: SafeArea(
-              child: RefreshIndicator(
-                onRefresh: _refreshAll,
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    SliverToBoxAdapter(child: _buildTopbar()),
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-                      sliver: SliverList(
-                        delegate: SliverChildListDelegate([
-                          _buildSearchBar(),
-                          const SizedBox(height: 16),
-                          _buildHeroSection(),
-                          const SizedBox(height: 18),
-                          _buildCategoryStrip(),
-                          const SizedBox(height: 16),
-                          _buildFeaturedOffersSection(),
-                          const SizedBox(height: 16),
-                          _buildPopularStoresSection(),
-                          const SizedBox(height: 16),
-                          _buildHowItWorks(),
-                        ]),
+              // The topbar and search bar sit outside the scroll view so they
+              // stay frozen at the top while the sections below scroll under
+              // them. A pinned SliverPersistentHeader would need a fixed
+              // extent, which the LayoutBuilder-driven compact/wide topbar
+              // does not have.
+              child: Column(
+                children: [
+                  _buildPinnedHeader(),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _refreshAll,
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                            sliver: SliverList(
+                              delegate: SliverChildListDelegate([
+                                _buildHeroSection(),
+                                const SizedBox(height: 18),
+                                _buildCategoryStrip(),
+                                const SizedBox(height: 16),
+                                _buildFeaturedOffersSection(),
+                                const SizedBox(height: 16),
+                                _buildPopularStoresSection(),
+                                const SizedBox(height: 16),
+                                _buildHowItWorks(),
+                              ]),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -612,6 +622,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  /// Frozen block at the top of the dashboard: menu button, logo, profile and
+  /// the search bar. Painted over the scrolling content, with a soft shadow so
+  /// sections passing underneath read as being behind it.
+  Widget _buildPinnedHeader() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        // Opaque on purpose. The header is painted over the scroll view, so a
+        // translucent fill would let the sections show through as they pass
+        // underneath. These are the top colours of AppColors.backgroundGradient
+        // so the seam with the scrolling area is invisible.
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFDBEAFE), Color(0xFFDDE7FE)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.textDark.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildTopbar(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+            child: _buildSearchBar(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTopbar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 14, 20, 0),
@@ -882,7 +928,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onTap: _openOffers,
         ),
         const SizedBox(height: 12),
-        SizedBox(height: 190, child: _buildFeaturedOffersBody()),
+        SizedBox(height: 218, child: _buildFeaturedOffersBody()),
       ],
     );
   }
@@ -1098,43 +1144,61 @@ class _DashboardOfferCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: NetworkImageWithFallback(
-                    url: offer.imageUrl,
-                    width: 60,
-                    height: 40,
-                    fallbackIcon: Icons.local_offer_outlined,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.10),
-                    iconColor: AppColors.primary,
-                    iconSize: 20,
+            // Offer artwork as the card's banner, with the store's brand mark
+            // overlaid so the deal reads as "this brand, this offer".
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 76,
+                    child: NetworkImageWithFallback(
+                      url: offer.imageUrl,
+                      fallbackIcon: Icons.local_offer_outlined,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.10),
+                      iconColor: AppColors.primary,
+                      iconSize: 26,
+                    ),
                   ),
-                ),
-                const Spacer(),
-                if (offer.isFeatured)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 5,
+                  Positioned(
+                    left: 8,
+                    bottom: 8,
+                    child: BrandLogoMark(
+                      name: storeName,
+                      slug: offer.storeSlug,
+                      logoUrl: offer.storeLogoUrl,
+                      size: 30,
+                      radius: 9,
                     ),
-                    decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Text(
-                      'Featured',
-                      style: TextStyle(
-                        color: AppColors.warning,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
+                  ),
+                  if (offer.isFeatured)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          'Featured',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 13),
+            const SizedBox(height: 10),
             if (storeName.isNotEmpty)
               Text(
                 storeName,
@@ -1142,11 +1206,11 @@ class _DashboardOfferCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.textDark,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Expanded(
               child: Text(
                 offer.title,

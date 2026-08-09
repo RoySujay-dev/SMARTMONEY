@@ -49,15 +49,19 @@ class CategoryCircleTile extends StatelessWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: hasIcon
-                  ? NetworkImageWithFallback(
-                      url: category.iconUrl,
-                      width: diameter,
-                      height: diameter,
-                      fit: BoxFit.cover,
-                      fallbackIcon: Icons.category_outlined,
-                      backgroundColor: accent.withValues(alpha: 0.12),
-                      iconColor: accent,
-                      iconSize: diameter * 0.38,
+                  // Contained and inset, not cover: these are glyph icons on a
+                  // transparent background, so cropping them to fill the circle
+                  // would cut the artwork off at the edges.
+                  ? Padding(
+                      padding: EdgeInsets.all(diameter * 0.24),
+                      child: NetworkImageWithFallback(
+                        url: category.iconUrl,
+                        fit: BoxFit.contain,
+                        fallbackIcon: Icons.category_outlined,
+                        backgroundColor: Colors.transparent,
+                        iconColor: accent,
+                        iconSize: diameter * 0.38,
+                      ),
                     )
                   : Center(
                       child: Text(

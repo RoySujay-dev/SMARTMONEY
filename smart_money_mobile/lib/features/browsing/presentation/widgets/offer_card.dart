@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/brand_logo_mark.dart';
 import '../../../../core/widgets/network_image_with_fallback.dart';
 import '../../data/models/offer_list_item.dart';
 
@@ -58,16 +59,30 @@ class OfferCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (storeName.isNotEmpty)
-                    Text(
-                      storeName.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 11,
-                        letterSpacing: 0.4,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        BrandLogoMark(
+                          name: storeName,
+                          slug: offer.storeSlug,
+                          logoUrl: offer.storeLogoUrl,
+                          size: 24,
+                          radius: 7,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            storeName.toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 11,
+                              letterSpacing: 0.4,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   const SizedBox(height: 4),
                   Text(

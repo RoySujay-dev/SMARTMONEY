@@ -23,7 +23,16 @@ import '../widgets/store_card.dart';
 /// query (the backend returns 400 for that case). Results are grouped into
 /// matching stores and offers.
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key, this.autofocus = true, this.showBackButton = true});
+  const SearchScreen({
+    super.key,
+    this.autofocus = true,
+    this.showBackButton = true,
+    this.onBack,
+  });
+
+  /// Supplied by the shell. A shell tab has nothing on the navigator to pop,
+  /// so it needs an explicit way back to the dashboard.
+  final VoidCallback? onBack;
 
   /// Disabled when hosted as a bottom-navigation tab so switching to the tab
   /// does not pop the keyboard open unprompted.
@@ -130,6 +139,13 @@ class _SearchScreenState extends State<SearchScreen> {
       appBar: AppBar(
         title: const Text('Search'),
         automaticallyImplyLeading: widget.showBackButton,
+        leading: widget.onBack == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+                tooltip: 'Back to dashboard',
+              ),
       ),
       body: LoginDemoBackground(
         child: SafeArea(
