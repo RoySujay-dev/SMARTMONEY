@@ -5,6 +5,7 @@ class OfferDetails {
     required this.storeId,
     required this.storeName,
     required this.storeSlug,
+    this.storeLogoUrl,
     required this.title,
     required this.slug,
     required this.offerType,
@@ -26,6 +27,7 @@ class OfferDetails {
   final String storeId;
   final String storeName;
   final String storeSlug;
+  final String? storeLogoUrl;
   final String title;
   final String slug;
   final String offerType;
@@ -51,6 +53,7 @@ class OfferDetails {
       storeId: json['storeId'] as String? ?? '',
       storeName: json['storeName'] as String? ?? '',
       storeSlug: json['storeSlug'] as String? ?? '',
+      storeLogoUrl: json['storeLogoUrl'] as String?,
       title: json['title'] as String? ?? '',
       slug: json['slug'] as String? ?? '',
       offerType: json['offerType'] as String? ?? '',

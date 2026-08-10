@@ -41,6 +41,7 @@ public sealed class SearchQueryHandler : IQueryHandler<SearchQuery,SearchResultR
                 offer.StoreId,
                 offer.Store.Name,
                 offer.Store.Slug,
+                offer.Store.LogoUrl,
                 offer.Title,
                 offer.Slug,
                 offer.OfferType.ToString(),

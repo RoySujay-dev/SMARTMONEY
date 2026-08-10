@@ -117,6 +117,7 @@ void main() {
         'storeId': 's1',
         'storeName': 'Myntra',
         'storeSlug': 'myntra',
+        'storeLogoUrl': '/media/stores/myntra.png',
         'title': 'Deal',
         'slug': 'deal',
         'offerType': 'Cashback',
@@ -129,6 +130,7 @@ void main() {
 
       expect(offer.slug, 'deal');
       expect(offer.destinationUrl, 'https://x/y');
+      expect(offer.storeLogoUrl, '/media/stores/myntra.png');
     });
   });
 }

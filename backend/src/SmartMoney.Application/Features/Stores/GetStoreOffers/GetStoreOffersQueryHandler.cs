@@ -21,6 +21,7 @@ public sealed class GetStoreOffersQueryHandler : IQueryHandler<GetStoreOffersQue
                 offer.StoreId,
                 offer.Store.Name,
                 offer.Store.Slug,
+                offer.Store.LogoUrl,
                 offer.Title,
                 offer.Slug,
                 offer.OfferType.ToString(),

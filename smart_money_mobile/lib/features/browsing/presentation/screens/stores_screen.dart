@@ -13,10 +13,14 @@ import '../widgets/store_card.dart';
 
 /// Lists all stores from `GET /api/stores`. Tapping a store opens store details.
 class StoresScreen extends StatefulWidget {
-  const StoresScreen({super.key, this.showBackButton = true});
+  const StoresScreen({super.key, this.showBackButton = true, this.onBack});
 
-  /// Hidden when the screen is hosted as a bottom-navigation tab.
+  /// Hidden when the screen is hosted as a shell tab rather than pushed.
   final bool showBackButton;
+
+  /// Supplied by the shell. A shell tab has nothing on the navigator to pop,
+  /// so it needs an explicit way back to the dashboard.
+  final VoidCallback? onBack;
 
   @override
   State<StoresScreen> createState() => _StoresScreenState();
@@ -86,6 +90,13 @@ class _StoresScreenState extends State<StoresScreen> {
       appBar: AppBar(
         title: const Text('Stores'),
         automaticallyImplyLeading: widget.showBackButton,
+        leading: widget.onBack == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+                tooltip: 'Back to dashboard',
+              ),
       ),
       body: LoginDemoBackground(
         child: SafeArea(top: false, child: _buildBody()),

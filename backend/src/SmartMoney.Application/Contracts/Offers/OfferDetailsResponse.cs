@@ -5,6 +5,7 @@ public sealed record OfferDetailsResponse(
     Guid StoreId,
     string StoreName,
     string StoreSlug,
+    string? StoreLogoUrl,
     string Title,
     string Slug,
     string OfferType,

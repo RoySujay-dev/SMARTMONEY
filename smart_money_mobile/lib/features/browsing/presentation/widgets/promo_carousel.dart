@@ -139,6 +139,7 @@ class _PromoBanner extends StatelessWidget {
       offer.storeSlug.isNotEmpty ? offer.storeSlug : offer.slug,
     );
     final hasImage = (offer.imageUrl?.trim().isNotEmpty) ?? false;
+    final hasLogo = (offer.storeLogoUrl?.trim().isNotEmpty) ?? false;
     final cashback = offer.cashbackText?.trim() ?? '';
     final storeName = offer.storeName.trim();
 
@@ -165,15 +166,35 @@ class _PromoBanner extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (hasImage)
+            if (hasImage) ...[
               NetworkImageWithFallback(
                 url: offer.imageUrl,
                 fit: BoxFit.cover,
-                opacity: 0.32,
                 fallbackIcon: Icons.local_offer_outlined,
                 backgroundColor: Colors.transparent,
                 iconColor: Colors.white,
               ),
+              // Scrim rather than a low image opacity: the artwork stays
+              // readable on the right while the text column on the left keeps
+              // enough contrast against it.
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Color.lerp(accent, Colors.black, 0.35)!.withValues(
+                        alpha: 0.92,
+                      ),
+                      Color.lerp(accent, Colors.black, 0.35)!.withValues(
+                        alpha: 0.30,
+                      ),
+                    ],
+                    stops: const [0.05, 1.0],
+                  ),
+                ),
+              ),
+            ],
             Padding(
               padding: const EdgeInsets.all(18),
               child: Column(
@@ -191,13 +212,32 @@ class _PromoBanner extends StatelessWidget {
                             color: Colors.white.withValues(alpha: 0.22),
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: Text(
-                            storeName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (hasLogo) ...[
+                                ClipOval(
+                                  child: NetworkImageWithFallback(
+                                    url: offer.storeLogoUrl,
+                                    width: 18,
+                                    height: 18,
+                                    fit: BoxFit.cover,
+                                    fallbackIcon: Icons.storefront_outlined,
+                                    backgroundColor: Colors.white,
+                                    iconColor: accent,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Text(
+                                storeName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       const Spacer(),

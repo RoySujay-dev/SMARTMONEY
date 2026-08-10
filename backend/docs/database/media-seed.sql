@@ -9,6 +9,19 @@
 -- configured API base URL, so the same rows work across environments without
 -- hardcoding a host.
 
+-- Category icons. One UPDATE per slug rather than a generated
+-- '/media/categories/' || "Slug" || '.png' expression: a row must only get a
+-- URL when the matching file actually exists in wwwroot/media/categories,
+-- otherwise the app swaps a clean tinted initial for a broken-image icon.
+-- Slugs with no row in this database are simply no-ops.
+UPDATE "Categories" SET "IconUrl" = '/media/categories/fashion.png'         WHERE "Slug" = 'fashion';
+UPDATE "Categories" SET "IconUrl" = '/media/categories/electronics.png'     WHERE "Slug" = 'electronics';
+UPDATE "Categories" SET "IconUrl" = '/media/categories/travel.png'          WHERE "Slug" = 'travel';
+UPDATE "Categories" SET "IconUrl" = '/media/categories/food-dining.png'     WHERE "Slug" = 'food-dining';
+UPDATE "Categories" SET "IconUrl" = '/media/categories/groceries.png'       WHERE "Slug" = 'groceries';
+UPDATE "Categories" SET "IconUrl" = '/media/categories/beauty.png'          WHERE "Slug" = 'beauty';
+UPDATE "Categories" SET "IconUrl" = '/media/categories/health-wellness.png' WHERE "Slug" = 'health-wellness';
+
 UPDATE "Stores"
 SET "LogoUrl"   = '/media/stores/myntra.png',
     "BannerUrl" = '/media/stores/myntra-banner.png'

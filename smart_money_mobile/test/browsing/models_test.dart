@@ -90,6 +90,7 @@ void main() {
         'storeId': 's1',
         'storeName': 'Myntra',
         'storeSlug': 'myntra',
+        'storeLogoUrl': '/media/stores/myntra.png',
         'title': '10% cashback',
         'slug': 'myntra-10-percent',
         'offerType': 'Cashback',
@@ -106,6 +107,7 @@ void main() {
       });
 
       expect(offer.slug, 'myntra-10-percent');
+      expect(offer.storeLogoUrl, '/media/stores/myntra.png');
       expect(offer.cashbackValue, 10.0);
       expect(offer.couponCode, isNull);
       expect(offer.startAt, isNotNull);
@@ -128,6 +130,7 @@ void main() {
       });
 
       expect(offer.cashbackValue, isNull);
+      expect(offer.storeLogoUrl, isNull);
       expect(offer.startAt, isNull);
     });
   });
@@ -139,6 +142,7 @@ void main() {
         'storeId': 's1',
         'storeName': 'Myntra',
         'storeSlug': 'myntra',
+        'storeLogoUrl': '/media/stores/myntra.png',
         'title': '10% cashback',
         'slug': 'myntra-10-percent',
         'offerType': 'Cashback',
@@ -151,6 +155,7 @@ void main() {
       });
 
       expect(offer.destinationUrl, 'https://myntra.com/deal');
+      expect(offer.storeLogoUrl, '/media/stores/myntra.png');
       expect(offer.termsAndConditions, 'Some terms');
       expect(offer.description, 'Full description');
     });
