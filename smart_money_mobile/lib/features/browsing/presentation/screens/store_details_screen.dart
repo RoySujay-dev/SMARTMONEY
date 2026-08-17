@@ -9,6 +9,7 @@ import '../../../../core/widgets/login_demo_widgets.dart';
 import '../../../../core/widgets/loading_view.dart';
 import '../../../../core/widgets/network_image_with_fallback.dart';
 import '../../../../core/widgets/view_state.dart';
+import '../../../affiliate/data/services/affiliate_api_service.dart';
 import '../../data/models/offer_list_item.dart';
 import '../../data/models/store_details.dart';
 import '../../data/services/browsing_api_service.dart';
@@ -27,6 +28,9 @@ class StoreDetailsScreen extends StatefulWidget {
 
 class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
   final BrowsingApiService _service = BrowsingApiService();
+  final AffiliateApiService _affiliateService = AffiliateApiService();
+
+  bool _isCreatingClick = false;
 
   ViewState _detailsState = ViewState.initial;
   StoreDetails? _details;
@@ -47,6 +51,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
   @override
   void dispose() {
     _service.dispose();
+    _affiliateService.dispose();
     super.dispose();
   }
 
@@ -126,18 +131,65 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
     );
   }
 
-  /// Sends the user to the store's own website.
-  ///
-  /// Affiliate link generation and click tracking (Cuelinks) are a later
-  /// milestone — this is a direct redirect to [StoreDetails.websiteUrl].
+  /// Creates a tracked affiliate click, then opens the backend redirect link
+  /// (`baseUrl + /r/{token}`) so the journey is recorded before the browser
+  /// reaches the merchant. Falls back to the untracked website URL when the
+  /// store has no active affiliate mapping.
   Future<void> _onEarnCashbackPressed() async {
-    final website = _details?.websiteUrl;
-    final opened = await ExternalLink.open(website);
+    final details = _details;
+    if (details == null || _isCreatingClick) return;
 
-    if (!mounted || opened) return;
+    setState(() => _isCreatingClick = true);
 
+    try {
+      String url;
+      try {
+        final click = await _affiliateService.createClick(storeId: details.id);
+        url = '${_affiliateService.baseUrl}${click.redirectPath}';
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        if (e.isUnauthorized) {
+          _promptSignIn(e.message);
+          return;
+        }
+        if (!e.isNotFound) {
+          _showSnack(e.message);
+          return;
+        }
+        _showSnack(
+          'Cashback tracking is not available for this store yet. '
+          'Opening the store website.',
+        );
+        url = details.websiteUrl;
+      }
+
+      final opened = await ExternalLink.open(url);
+      if (!mounted || opened) return;
+
+      _showSnack('Could not open the store website.');
+    } catch (_) {
+      if (!mounted) return;
+      _showSnack('Something went wrong. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isCreatingClick = false);
+    }
+  }
+
+  void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open the store website.')),
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  void _promptSignIn(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: 'Sign in',
+          onPressed: () => Navigator.pushNamed(context, RouteNames.login),
+        ),
+      ),
     );
   }
 
@@ -173,6 +225,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
               _StoreHeader(
                 details: details,
                 onEarnCashback: _onEarnCashbackPressed,
+                isEarnCashbackLoading: _isCreatingClick,
               ),
               const SizedBox(height: 20),
               const _SectionTitle(title: 'Offers'),
@@ -222,10 +275,15 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
 }
 
 class _StoreHeader extends StatelessWidget {
-  const _StoreHeader({required this.details, required this.onEarnCashback});
+  const _StoreHeader({
+    required this.details,
+    required this.onEarnCashback,
+    required this.isEarnCashbackLoading,
+  });
 
   final StoreDetails details;
   final VoidCallback onEarnCashback;
+  final bool isEarnCashbackLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -368,6 +426,7 @@ class _StoreHeader extends StatelessWidget {
                   LoginDemoGradientButton(
                     label: 'Earn Cashback',
                     icon: Icons.open_in_new_rounded,
+                    isLoading: isEarnCashbackLoading,
                     onPressed: onEarnCashback,
                   ),
                 ],

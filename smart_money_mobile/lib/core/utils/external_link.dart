@@ -1,10 +1,10 @@
 import 'package:url_launcher/url_launcher.dart';
 
-/// Opens merchant destinations in the device browser.
+/// Opens http(s) destinations in the device browser.
 ///
-/// This is a plain redirect to the URL the backend already returns. It performs
-/// no affiliate/deep-link generation or click tracking — that is the later
-/// Cuelinks milestone, which will replace the raw URL with a tracked one.
+/// Callers pass either a plain merchant URL or a backend tracked-redirect
+/// link (`ApiConfig.baseUrl + '/r/{token}'`). This class only validates and
+/// launches the URL — click tracking happens server-side on the redirect.
 class ExternalLink {
   ExternalLink._();
 

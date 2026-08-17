@@ -10,14 +10,15 @@ import '../../../../core/widgets/login_demo_widgets.dart';
 import '../../../../core/widgets/loading_view.dart';
 import '../../../../core/widgets/network_image_with_fallback.dart';
 import '../../../../core/widgets/view_state.dart';
+import '../../../affiliate/data/services/affiliate_api_service.dart';
 import '../../data/models/offer_details.dart';
 import '../../data/services/browsing_api_service.dart';
 
 /// Offer details from `GET /api/offers/{slug}`.
 ///
-/// Note: [OfferDetails.destinationUrl] is intentionally NOT opened here. The
-/// affiliate/deep-link (Cuelinks) flow is a later milestone, so the CTA is kept
-/// as a design placeholder and does not invent any tracking/redirect logic.
+/// The CTA creates a tracked affiliate click (`POST /api/affiliate/clicks`)
+/// and opens the backend `/r/{token}` redirect so the journey is recorded,
+/// falling back to [OfferDetails.destinationUrl] when tracking is unavailable.
 class OfferDetailsScreen extends StatefulWidget {
   const OfferDetailsScreen({super.key, required this.offerSlug});
 
@@ -29,11 +30,13 @@ class OfferDetailsScreen extends StatefulWidget {
 
 class _OfferDetailsScreenState extends State<OfferDetailsScreen> {
   final BrowsingApiService _service = BrowsingApiService();
+  final AffiliateApiService _affiliateService = AffiliateApiService();
 
   ViewState _state = ViewState.initial;
   OfferDetails? _offer;
   String _error = '';
   bool _isLoading = false;
+  bool _isCreatingClick = false;
 
   @override
   void initState() {
@@ -44,6 +47,7 @@ class _OfferDetailsScreenState extends State<OfferDetailsScreen> {
   @override
   void dispose() {
     _service.dispose();
+    _affiliateService.dispose();
     super.dispose();
   }
 
@@ -94,17 +98,68 @@ class _OfferDetailsScreenState extends State<OfferDetailsScreen> {
     );
   }
 
-  /// Sends the user to the offer's destination.
-  ///
-  /// Affiliate link generation and click tracking (Cuelinks) are a later
-  /// milestone — this is a direct redirect to [OfferDetails.destinationUrl].
+  /// Creates a tracked affiliate click for this offer, then opens the backend
+  /// redirect link (`baseUrl + /r/{token}`) so the journey is recorded before
+  /// the browser reaches the merchant. Falls back to the untracked
+  /// [OfferDetails.destinationUrl] when tracking is unavailable.
   Future<void> _onShopPressed() async {
-    final opened = await ExternalLink.open(_offer?.destinationUrl);
+    final offer = _offer;
+    if (offer == null || _isCreatingClick) return;
 
-    if (!mounted || opened) return;
+    setState(() => _isCreatingClick = true);
 
+    try {
+      String url;
+      try {
+        final click = await _affiliateService.createClick(
+          storeId: offer.storeId,
+          offerId: offer.id,
+        );
+        url = '${_affiliateService.baseUrl}${click.redirectPath}';
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        if (e.isUnauthorized) {
+          _promptSignIn(e.message);
+          return;
+        }
+        if (!e.isNotFound) {
+          _showSnack(e.message);
+          return;
+        }
+        _showSnack(
+          'Cashback tracking is not available for this offer yet. '
+          'Opening the offer link.',
+        );
+        url = offer.destinationUrl;
+      }
+
+      final opened = await ExternalLink.open(url);
+      if (!mounted || opened) return;
+
+      _showSnack('Could not open the offer link.');
+    } catch (_) {
+      if (!mounted) return;
+      _showSnack('Something went wrong. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isCreatingClick = false);
+    }
+  }
+
+  void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open the offer link.')),
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  void _promptSignIn(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: 'Sign in',
+          onPressed: () => Navigator.pushNamed(context, RouteNames.login),
+        ),
+      ),
     );
   }
 
@@ -292,6 +347,7 @@ class _OfferDetailsScreenState extends State<OfferDetailsScreen> {
           LoginDemoGradientButton(
             label: 'Shop & Earn Cashback',
             icon: Icons.open_in_new_rounded,
+            isLoading: _isCreatingClick,
             onPressed: _onShopPressed,
           ),
         ],
