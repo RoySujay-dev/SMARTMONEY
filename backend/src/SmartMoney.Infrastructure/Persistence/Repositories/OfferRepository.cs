@@ -33,6 +33,21 @@ public sealed class OfferRepository : IOfferRepository
             .ThenBy(offer => offer.Title)
             .ToListAsync(cancellationToken);
     }
+    public async Task<Offer?> GetActiveByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var currentTime = DateTime.UtcNow;
+
+        return await _dbContext.Offers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(offer =>
+                offer.IsActive &&
+                offer.Id == id &&
+                (!offer.StartAt.HasValue ||
+                    offer.StartAt.Value <= currentTime) &&
+                (!offer.EndAt.HasValue ||
+                    offer.EndAt.Value >= currentTime),
+                cancellationToken);
+    }
     public async Task<Offer?> GetActiveBySlugAsync(string slug,CancellationToken cancellationToken = default)
     {
         var currentTime = DateTime.UtcNow;

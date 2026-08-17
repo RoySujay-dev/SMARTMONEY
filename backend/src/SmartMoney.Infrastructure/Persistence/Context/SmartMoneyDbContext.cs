@@ -37,6 +37,11 @@ public sealed class SmartMoneyDbContext : DbContext, IUnitOfWork
     public DbSet<StoreAffiliateMapping> StoreAffiliateMappings
         => Set<StoreAffiliateMapping>();
 
+    public DbSet<AffiliateClick> AffiliateClicks => Set<AffiliateClick>();
+
+    public DbSet<AffiliateConversion> AffiliateConversions
+        => Set<AffiliateConversion>();
+
     public DbSet<Banner> Banners => Set<Banner>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
