@@ -49,11 +49,13 @@ class CategoryCircleTile extends StatelessWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: hasIcon
-                  // Contained and inset, not cover: these are glyph icons on a
-                  // transparent background, so cropping them to fill the circle
-                  // would cut the artwork off at the edges.
+                  // Contained and inset, not cover: these are illustrations on
+                  // a transparent background, so cropping them to fill the
+                  // circle would cut the artwork off at the edges. The inset is
+                  // small because the assets are already cropped to their
+                  // artwork, with no baked-in margin of their own.
                   ? Padding(
-                      padding: EdgeInsets.all(diameter * 0.24),
+                      padding: EdgeInsets.all(diameter * 0.10),
                       child: NetworkImageWithFallback(
                         url: category.iconUrl,
                         fit: BoxFit.contain,
