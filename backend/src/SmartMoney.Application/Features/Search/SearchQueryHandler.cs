@@ -3,6 +3,7 @@ using SmartMoney.Application.Abstractions.Persistence;
 using SmartMoney.Application.Contracts.Offers;
 using SmartMoney.Application.Contracts.Search;
 using SmartMoney.Application.Contracts.Stores;
+using SmartMoney.Domain.Entities;
 
 namespace SmartMoney.Application.Features.Search;
 
@@ -19,9 +20,31 @@ public sealed class SearchQueryHandler : IQueryHandler<SearchQuery,SearchResultR
 
     public async Task<SearchResultResponse> HandleAsync(SearchQuery query,CancellationToken cancellationToken)
     {
-        var stores = await _storeRepository.SearchAsync(query.Query,cancellationToken);
+        var searchTerm = query.Query.Trim().ToLowerInvariant();
 
-        var offers = await _offerRepository.SearchAsync(query.Query,cancellationToken);
+        IReadOnlyList<Store> stores;
+        IReadOnlyList<Offer> offers;
+
+        if (searchTerm is "store" or "stores" or "brand" or "brands")
+        {
+            stores = await _storeRepository.GetActiveAsync(cancellationToken);
+            offers = Array.Empty<Domain.Entities.Offer>();
+        }
+        else if (searchTerm is "offer" or "offers" or "deal" or "deals")
+        {
+            stores = Array.Empty<Domain.Entities.Store>();
+            offers = await _offerRepository.GetActiveAsync(cancellationToken);
+        }
+        else
+        {
+            stores = await _storeRepository.SearchAsync(
+                query.Query,
+                cancellationToken);
+
+            offers = await _offerRepository.SearchAsync(
+                query.Query,
+                cancellationToken);
+        }
 
         var storeResponses = stores
             .Select(store => new StoreListItemResponse(
