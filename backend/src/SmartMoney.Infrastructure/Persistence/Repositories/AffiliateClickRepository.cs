@@ -26,4 +26,13 @@ public sealed class AffiliateClickRepository : IAffiliateClickRepository
                 click => click.RedirectToken == redirectToken,
                 cancellationToken);
     }
+
+    public async Task<AffiliateClick?> GetByTrackingReferenceAsync(string trackingReference, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.AffiliateClicks
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                click => click.TrackingReference == trackingReference,
+                cancellationToken);
+    }
 }

@@ -39,6 +39,8 @@ public static class DependencyInjection
         services.AddScoped<IOfferRepository, OfferRepository>();
         services.AddScoped<IAffiliateClickRepository, AffiliateClickRepository>();
         services.AddScoped<IStoreAffiliateMappingRepository, StoreAffiliateMappingRepository>();
+        services.AddScoped<IAffiliateNetworkRepository, AffiliateNetworkRepository>();
+        services.AddScoped<IAffiliateConversionRepository, AffiliateConversionRepository>();
 
         services.AddScoped<IUnitOfWork>(serviceProvider =>
             serviceProvider.GetRequiredService<SmartMoneyDbContext>());

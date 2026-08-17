@@ -11,6 +11,7 @@ using SmartMoney.Application.Contracts.Offers;
 using SmartMoney.Application.Contracts.Search;
 using SmartMoney.Application.Contracts.Stores;
 using SmartMoney.Application.Features.Affiliate.CreateAffiliateClick;
+using SmartMoney.Application.Features.Affiliate.IngestAffiliateConversion;
 using SmartMoney.Application.Features.Affiliate.ResolveAffiliateRedirect;
 using SmartMoney.Application.Features.Categories.GetCategories;
 using SmartMoney.Application.Features.Identity.Login;
@@ -72,6 +73,10 @@ public static class ApplicationDependencyInjection
         services.AddScoped<ICommandHandler<CreateAffiliateClickCommand,CreateAffiliateClickResponse?>,CreateAffiliateClickCommandHandler>();
 
         services.AddScoped<ICommandHandler<ResolveAffiliateRedirectCommand,string?>,ResolveAffiliateRedirectCommandHandler>();
+
+        services.AddScoped<IngestAffiliateConversionValidator>();
+
+        services.AddScoped<ICommandHandler<IngestAffiliateConversionCommand,IngestAffiliateConversionResponse>,IngestAffiliateConversionCommandHandler>();
 
         return services;
     }
