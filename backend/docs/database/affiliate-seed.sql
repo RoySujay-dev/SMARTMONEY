@@ -1,0 +1,71 @@
+INSERT INTO "AffiliateNetworks"
+(
+    "Id",
+    "Name",
+    "Code",
+    "IsActive",
+    "CreatedAt",
+    "UpdatedAt"
+)
+VALUES
+(
+    'ab111111-1111-1111-1111-111111111111',
+    'Cuelinks',
+    'CUELINKS',
+    TRUE,
+    CURRENT_TIMESTAMP,
+    NULL
+)
+ON CONFLICT ("Id") DO NOTHING;
+
+INSERT INTO "StoreAffiliateMappings"
+(
+    "Id",
+    "StoreId",
+    "AffiliateNetworkId",
+    "ExternalMerchantId",
+    "ExternalMerchantName",
+    "MerchantUrl",
+    "IsActive",
+    "LastSyncedAt",
+    "CreatedAt",
+    "UpdatedAt"
+)
+VALUES
+(
+    'ab222222-2222-2222-2222-222222222222',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'ab111111-1111-1111-1111-111111111111',
+    'CL-MYNTRA',
+    'Myntra',
+    'https://www.myntra.com',
+    TRUE,
+    NULL,
+    CURRENT_TIMESTAMP,
+    NULL
+),
+(
+    'ab333333-3333-3333-3333-333333333333',
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    'ab111111-1111-1111-1111-111111111111',
+    'CL-FLIPKART',
+    'Flipkart',
+    'https://www.flipkart.com',
+    TRUE,
+    NULL,
+    CURRENT_TIMESTAMP,
+    NULL
+),
+(
+    'ab444444-4444-4444-4444-444444444444',
+    'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    'ab111111-1111-1111-1111-111111111111',
+    'CL-MAKEMYTRIP',
+    'MakeMyTrip',
+    'https://www.makemytrip.com',
+    TRUE,
+    NULL,
+    CURRENT_TIMESTAMP,
+    NULL
+)
+ON CONFLICT ("Id") DO NOTHING;

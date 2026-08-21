@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using SmartMoney.Application.Abstractions.Persistence;
 using SmartMoney.Domain.Entities;
 using SmartMoney.Infrastructure.Persistence.Context;
@@ -46,14 +47,16 @@ public sealed class StoreRepository : IStoreRepository
     }
     public async Task<IReadOnlyList<Store>> SearchAsync(string searchTerm, CancellationToken cancellationToken = default)
     {
+        var pattern = SearchPattern.WordPrefix(searchTerm);
+
         return await _dbContext.Stores
             .AsNoTracking()
             .Where(store => store.IsActive &&
                 (
-                    EF.Functions.ILike(store.Name, $"%{searchTerm}%") ||
-                    EF.Functions.ILike(store.Slug, $"%{searchTerm}%") ||
+                    Regex.IsMatch(store.Name, pattern, RegexOptions.IgnoreCase) ||
+                    Regex.IsMatch(store.Slug, pattern, RegexOptions.IgnoreCase) ||
                     (
-                        store.ShortDescription != null && EF.Functions.ILike(store.ShortDescription,$"%{searchTerm}%")
+                        store.ShortDescription != null && Regex.IsMatch(store.ShortDescription, pattern, RegexOptions.IgnoreCase)
                     )
                 ))
             .OrderBy(store => store.DisplayOrder)

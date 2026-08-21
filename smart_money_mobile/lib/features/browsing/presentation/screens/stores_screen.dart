@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/routes/route_names.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/widgets/app_drawer.dart';
 import '../../../../core/widgets/empty_view.dart';
+import '../../../../core/widgets/menu_lines_icon.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/login_demo_widgets.dart';
 import '../../../../core/widgets/loading_view.dart';
@@ -13,14 +15,7 @@ import '../widgets/store_card.dart';
 
 /// Lists all stores from `GET /api/stores`. Tapping a store opens store details.
 class StoresScreen extends StatefulWidget {
-  const StoresScreen({super.key, this.showBackButton = true, this.onBack});
-
-  /// Hidden when the screen is hosted as a shell tab rather than pushed.
-  final bool showBackButton;
-
-  /// Supplied by the shell. A shell tab has nothing on the navigator to pop,
-  /// so it needs an explicit way back to the dashboard.
-  final VoidCallback? onBack;
+  const StoresScreen({super.key});
 
   @override
   State<StoresScreen> createState() => _StoresScreenState();
@@ -87,16 +82,12 @@ class _StoresScreenState extends State<StoresScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // The drawer replaces the old back-to-dashboard arrow: it reaches the
+      // dashboard and every other section, not just the way back.
+      drawer: const AppDrawer(current: AppDrawerItem.stores),
       appBar: AppBar(
         title: const Text('Stores'),
-        automaticallyImplyLeading: widget.showBackButton,
-        leading: widget.onBack == null
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: widget.onBack,
-                tooltip: 'Back to dashboard',
-              ),
+        leading: const DrawerMenuButton(),
       ),
       body: LoginDemoBackground(
         child: SafeArea(top: false, child: _buildBody()),

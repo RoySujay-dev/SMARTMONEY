@@ -1,20 +1,31 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/routes/route_names.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/widgets/app_drawer.dart';
 import '../../../../core/widgets/brand_logo_mark.dart';
+import '../../../../core/widgets/empty_view.dart';
+import '../../../../core/widgets/error_view.dart';
+import '../../../../core/widgets/loading_view.dart';
 import '../../../../core/widgets/login_demo_widgets.dart';
+import '../../../../core/widgets/menu_lines_icon.dart';
 import '../../../../core/widgets/network_image_with_fallback.dart';
+import '../../../../core/widgets/profile_avatar.dart';
 import '../../../../core/widgets/view_state.dart';
 import '../../../browsing/data/models/category.dart';
 import '../../../browsing/data/models/offer_list_item.dart';
+import '../../../browsing/data/models/search_result.dart';
 import '../../../browsing/data/models/store_list_item.dart';
 import '../../../browsing/data/services/browsing_api_service.dart';
 import '../../../browsing/presentation/widgets/category_circle_tile.dart';
+import '../../../browsing/presentation/widgets/offer_card.dart';
 import '../../../browsing/presentation/widgets/promo_carousel.dart';
+import '../../../browsing/presentation/widgets/search_group_header.dart';
 import '../../../browsing/presentation/widgets/store_card.dart';
-import '../../../profile/data/services/profile_api_service.dart';
+import '../../../profile/data/profile_summary_store.dart';
 import '../../../shell/presentation/screens/main_shell.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -29,16 +40,11 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final _profileApiService = ProfileApiService();
   final BrowsingApiService _browsingApiService = BrowsingApiService();
 
-  String _profileInitials = 'SM';
-  String _profileName = 'SmartMoney User';
-  String _profileEmail = '';
-  String _profileImageUrl = '';
-  bool _isProfileVerified = false;
-  bool _isDrawerOpen = false;
-  String _selectedDrawerItem = 'Dashboard';
+  /// Profile lives in a shared store because the drawer shows it too, and the
+  /// drawer is now hosted by several screens.
+  final ProfileSummaryStore _profileStore = ProfileSummaryStore.instance;
 
   // Browsing data (real backend data — no hardcoded brands).
   ViewState _categoriesState = ViewState.initial;
@@ -58,10 +64,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   static const int _dashboardItemLimit = 10;
 
+  // Inline search. Typing in the header's search bar swaps the scrolling
+  // sections below it for results; clearing the query brings them back. No
+  // navigation is involved, so the header never moves.
+  static const Duration _searchDebounce = Duration(milliseconds: 400);
+
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
+  Timer? _searchDebounceTimer;
+  ViewState _searchState = ViewState.initial;
+  SearchResult? _searchResult;
+  String _searchError = '';
+
+  /// Trimmed query text. Whitespace-only input is not a search, so it leaves
+  /// the dashboard in place — but the clear button keys off the raw text, so
+  /// the user can still wipe it.
+  String _searchQuery = '';
+
+  bool get _isSearching => _searchQuery.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
-    _loadProfileSummary();
+    _searchController.addListener(_onSearchTextChanged);
+    _profileStore.ensureLoaded();
     _loadCategories();
     _loadOffers();
     _loadStores();
@@ -69,27 +96,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
-    _profileApiService.dispose();
+    _searchDebounceTimer?.cancel();
+    _searchController.removeListener(_onSearchTextChanged);
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _browsingApiService.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadProfileSummary() async {
-    try {
-      final profile = await _profileApiService.getProfile();
-
-      if (!mounted) return;
-
-      setState(() {
-        _profileInitials = _initials(profile.fullName);
-        _profileName = profile.fullName;
-        _profileEmail = profile.email;
-        _profileImageUrl = _profileImageUrlFor(profile.profileImageUrl);
-        _isProfileVerified = profile.isEmailVerified;
-      });
-    } catch (_) {
-      // Keep the default profile chip if the session is missing or expired.
-    }
   }
 
   Future<void> _loadCategories() async {
@@ -182,11 +194,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _refreshAll() async {
     await Future.wait([
-      _loadProfileSummary(),
+      _profileStore.refresh(),
       _loadCategories(),
       _loadOffers(),
       _loadStores(),
     ]);
+  }
+
+  /// Categories for the dashboard strip: only those with artwork.
+  ///
+  /// A category with no icon falls back to a tinted initial, which reads as a
+  /// hole in a row of illustrated tiles. Filtering on the icon rather than on a
+  /// hardcoded slug list means a category joins the strip as soon as its art is
+  /// uploaded, and drops out again if the art is ever removed. The complete
+  /// list, fallbacks included, is still one tap away on the categories screen.
+  List<Category> get _topCategories {
+    final illustrated = _categories.where(
+      (c) => (c.iconUrl?.trim().isNotEmpty) ?? false,
+    );
+    return illustrated.take(_dashboardItemLimit).toList();
   }
 
   /// Offers to feature: prioritize `isFeatured`, then fall back to the rest.
@@ -207,34 +233,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ..._stores.where((s) => !s.isFeatured),
     ];
     return ordered.take(_dashboardItemLimit).toList();
-  }
-
-  String _initials(String name) {
-    final parts = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
-
-    if (parts.isEmpty) {
-      return 'SM';
-    }
-
-    return parts.take(2).map((part) => part[0]).join().toUpperCase();
-  }
-
-  String _profileImageUrlFor(String value) {
-    final imageUrl = value.trim();
-
-    if (imageUrl.isEmpty) {
-      return '';
-    }
-
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      return imageUrl;
-    }
-
-    return '${_profileApiService.baseUrl}$imageUrl';
   }
 
   void _openCategories() {
@@ -259,13 +257,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Navigator.pushNamed(context, RouteNames.offers);
   }
 
-  void _openSearch() {
-    final selectTab = widget.onSelectTab;
-    if (selectTab != null) {
-      selectTab(ShellTab.search);
+  /// Keeps [_searchQuery] in step with the field and repaints the clear button.
+  ///
+  /// Without a listener the clear button would read stale text and only appear
+  /// on the next unrelated rebuild.
+  void _onSearchTextChanged() {
+    final trimmed = _searchController.text.trim();
+    if (trimmed == _searchQuery) {
+      // Raw text moved (a trailing space, a caret change) but the effective
+      // query did not. Still repaint so the clear button tracks the raw text.
+      setState(() {});
       return;
     }
-    Navigator.pushNamed(context, RouteNames.search);
+    setState(() => _searchQuery = trimmed);
+  }
+
+  void _onSearchQueryChanged(String value) {
+    _searchDebounceTimer?.cancel();
+
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      setState(() {
+        _searchResult = null;
+        _searchState = ViewState.initial;
+      });
+      return;
+    }
+
+    // Show the spinner for the debounce window too, otherwise the swap from
+    // dashboard to results opens on a blank frame.
+    setState(() => _searchState = ViewState.loading);
+    _searchDebounceTimer = Timer(_searchDebounce, () => _performSearch(trimmed));
+  }
+
+  Future<void> _performSearch(String query) async {
+    setState(() => _searchState = ViewState.loading);
+
+    try {
+      final result = await _browsingApiService.search(query);
+      if (!mounted) return;
+      // Ignore stale responses if the query changed while awaiting.
+      if (query != _searchController.text.trim()) return;
+      setState(() {
+        _searchResult = result;
+        _searchState = result.isEmpty ? ViewState.empty : ViewState.success;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (query != _searchController.text.trim()) return;
+      setState(() {
+        _searchError = e.message;
+        _searchState = ViewState.error;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      if (query != _searchController.text.trim()) return;
+      setState(() {
+        _searchError = 'Something went wrong. Please try again.';
+        _searchState = ViewState.error;
+      });
+    }
+  }
+
+  /// Returns to the dashboard: drops the query, the results and the keyboard.
+  void _clearSearch() {
+    _searchDebounceTimer?.cancel();
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    setState(() {
+      _searchResult = null;
+      _searchState = ViewState.initial;
+      _searchError = '';
+    });
   }
 
   void _openCategory(Category category) {
@@ -286,147 +349,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          LoginDemoBackground(
-            child: SafeArea(
-              // The topbar and search bar sit outside the scroll view so they
-              // stay frozen at the top while the sections below scroll under
-              // them. A pinned SliverPersistentHeader would need a fixed
-              // extent, which the LayoutBuilder-driven compact/wide topbar
-              // does not have.
-              child: Column(
-                children: [
-                  _buildPinnedHeader(),
-                  Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: _refreshAll,
-                      child: CustomScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        slivers: [
-                          SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-                            sliver: SliverList(
-                              delegate: SliverChildListDelegate([
-                                _buildHeroSection(),
-                                const SizedBox(height: 18),
-                                _buildCategoryStrip(),
-                                const SizedBox(height: 16),
-                                _buildFeaturedOffersSection(),
-                                const SizedBox(height: 16),
-                                _buildPopularStoresSection(),
-                                const SizedBox(height: 16),
-                                _buildHowItWorks(),
-                              ]),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_isDrawerOpen) _buildDrawerOverlay(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDrawerOverlay() {
-    return Positioned.fill(
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 180),
-        opacity: _isDrawerOpen ? 1 : 0,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _closeDrawer,
-          child: Container(
-            color: Colors.black.withValues(alpha: 0.32),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: TweenAnimationBuilder<double>(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
-                tween: Tween(begin: -24, end: 0),
-                builder: (context, offset, child) {
-                  return Transform.translate(
-                    offset: Offset(offset, 0),
-                    child: child,
-                  );
-                },
-                child: GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    width: MediaQuery.sizeOf(context).width * 0.80,
-                    constraints: const BoxConstraints(maxWidth: 320),
-                    height: double.infinity,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFF),
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(26),
-                        bottomRight: Radius.circular(26),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.textDark.withValues(alpha: 0.22),
-                          blurRadius: 28,
-                          offset: const Offset(10, 0),
-                        ),
-                      ],
-                    ),
-                    child: SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 14, 14, 0),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(13),
-                                    boxShadow: [AppColors.cardShadow],
-                                  ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: Image.asset(
-                                    'assets/images/smartmoney_mark.png',
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                                const SizedBox(width: 9),
-                                Expanded(
-                                  child: Image.asset(
-                                    'assets/images/smartmoney_wordmark.png',
-                                    height: 24,
-                                    fit: BoxFit.contain,
-                                    alignment: Alignment.centerLeft,
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: 'Close menu',
-                                  icon: const Icon(
-                                    Icons.close_rounded,
-                                    color: AppColors.textDark,
-                                  ),
-                                  onPressed: _closeDrawer,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
-                            _buildDrawerProfileRow(),
-                            const SizedBox(height: 22),
-                            _buildDrawerMenuList(),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+    return PopScope(
+      // The drawer handles its own back dismissal now that the framework hosts
+      // it, so only search needs intercepting here.
+      canPop: !_isSearching,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_isSearching) {
+          _clearSearch();
+        }
+      },
+      child: Scaffold(
+        drawer: const AppDrawer(current: AppDrawerItem.dashboard),
+        body: LoginDemoBackground(
+          child: SafeArea(
+            // The topbar and search bar sit outside the scroll view so they
+            // stay frozen at the top while the sections below scroll under
+            // them. A pinned SliverPersistentHeader would need a fixed
+            // extent, which the LayoutBuilder-driven compact/wide topbar
+            // does not have. Keeping them outside also means search results
+            // can replace the body without the search field moving.
+            child: Column(
+              children: [
+                _buildPinnedHeader(),
+                Expanded(
+                  child: _isSearching
+                      ? _buildSearchResultsPane()
+                      : _buildDashboardContent(),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -434,90 +385,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDrawerProfileRow() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.82)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.88),
-              shape: BoxShape.circle,
-            ),
-            child: _ProfileImageOrInitials(
-              initials: _profileInitials,
-              imageUrl: _profileImageUrl,
-              size: 42,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _profileName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textDark,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  _profileEmail.isEmpty ? 'No email found' : _profileEmail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _isProfileVerified
-                            ? Icons.verified_rounded
-                            : Icons.shield_outlined,
-                        color: AppColors.primary,
-                        size: 13,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        _isProfileVerified ? 'Verified' : 'Active',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+  Widget _buildDashboardContent() {
+    return RefreshIndicator(
+      onRefresh: _refreshAll,
+      child: CustomScrollView(
+        // Swapping this subtree out for search results disposes its scroll
+        // position; the key restores the offset when the dashboard comes back.
+        key: const PageStorageKey<String>('dashboard-scroll'),
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildHeroSection(),
+                const SizedBox(height: 18),
+                _buildCategoryStrip(),
+                const SizedBox(height: 16),
+                _buildFeaturedOffersSection(),
+                const SizedBox(height: 16),
+                _buildPopularStoresSection(),
+                const SizedBox(height: 16),
+                _buildHowItWorks(),
+              ]),
             ),
           ),
         ],
@@ -525,101 +415,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDrawerMenuList() {
-    final items = [
-      _DrawerMenuItemData(
-        label: 'Dashboard',
-        icon: Icons.dashboard_outlined,
-        isActive: _selectedDrawerItem == 'Dashboard',
-        onTap: () => _selectDrawerItem('Dashboard'),
-      ),
-      _DrawerMenuItemData(
-        label: 'Stores',
-        icon: Icons.storefront_outlined,
-        isActive: _selectedDrawerItem == 'Stores',
-        onTap: () => _selectDrawerItem('Stores', destination: _openStores),
-      ),
-      _DrawerMenuItemData(
-        label: 'Offers',
-        icon: Icons.local_offer_outlined,
-        isActive: _selectedDrawerItem == 'Offers',
-        onTap: () => _selectDrawerItem('Offers', destination: _openOffers),
-      ),
-      _DrawerMenuItemData(
-        label: 'Categories',
-        icon: Icons.grid_view_rounded,
-        isActive: _selectedDrawerItem == 'Categories',
-        onTap: () =>
-            _selectDrawerItem('Categories', destination: _openCategories),
-      ),
-      _DrawerMenuItemData(
-        label: 'Withdraw',
-        icon: Icons.account_balance_wallet_outlined,
-        isActive: _selectedDrawerItem == 'Withdraw',
-        onTap: () => _selectDrawerItem('Withdraw'),
-      ),
-      _DrawerMenuItemData(
-        label: 'Profile',
-        icon: Icons.person_outline_rounded,
-        isActive: _selectedDrawerItem == 'Profile',
-        onTap: () => _selectDrawerItem('Profile', openProfile: true),
-      ),
-    ];
+  Widget _buildSearchResultsPane() {
+    switch (_searchState) {
+      // `initial` is unreachable while searching (an empty query shows the
+      // dashboard), but the switch stays exhaustive.
+      case ViewState.initial:
+      case ViewState.loading:
+        return const LoadingView(message: 'Searching...');
+      case ViewState.error:
+        return ErrorView(
+          message: _searchError,
+          onRetry: () {
+            final trimmed = _searchController.text.trim();
+            if (trimmed.isNotEmpty) _performSearch(trimmed);
+          },
+        );
+      case ViewState.empty:
+        return const EmptyView(
+          title: 'No results found',
+          message: 'Try a different store, brand or keyword.',
+          icon: Icons.search_off_rounded,
+        );
+      case ViewState.success:
+        return _buildSearchResults(_searchResult!);
+    }
+  }
 
-    return Column(
-      children: items
-          .map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _DrawerMenuRow(item: item),
-            ),
-          )
-          .toList(),
+  Widget _buildSearchResults(SearchResult result) {
+    return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      children: [
+        if (result.stores.isNotEmpty) ...[
+          SearchGroupHeader(
+            icon: Icons.storefront_outlined,
+            label: 'Stores',
+            count: result.stores.length,
+          ),
+          const SizedBox(height: 12),
+          for (final store in result.stores) ...[
+            StoreCard(store: store, onTap: () => _openStore(store)),
+            const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 8),
+        ],
+        if (result.offers.isNotEmpty) ...[
+          SearchGroupHeader(
+            icon: Icons.local_offer_outlined,
+            label: 'Offers',
+            count: result.offers.length,
+          ),
+          const SizedBox(height: 12),
+          for (final offer in result.offers) ...[
+            OfferCard(offer: offer, onTap: () => _openOffer(offer)),
+            const SizedBox(height: 14),
+          ],
+        ],
+      ],
     );
-  }
-
-  void _openDrawer() {
-    setState(() {
-      _isDrawerOpen = true;
-    });
-  }
-
-  void _closeDrawer() {
-    setState(() {
-      _isDrawerOpen = false;
-    });
-  }
-
-  Future<void> _selectDrawerItem(
-    String label, {
-    bool openProfile = false,
-    VoidCallback? destination,
-  }) async {
-    setState(() {
-      _selectedDrawerItem = label;
-    });
-
-    if (openProfile) {
-      await Future<void>.delayed(const Duration(milliseconds: 160));
-      if (!mounted) return;
-      _openProfileFromDrawer();
-      return;
-    }
-
-    if (destination != null) {
-      _closeDrawer();
-      await Future<void>.delayed(const Duration(milliseconds: 160));
-      if (!mounted) return;
-      destination();
-    }
-  }
-
-  void _openProfileFromDrawer() {
-    _closeDrawer();
-
-    Navigator.pushNamed(context, RouteNames.profile).then((_) {
-      _loadProfileSummary();
-    });
   }
 
   /// Frozen block at the top of the dashboard: menu button, logo, profile and
@@ -713,17 +566,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// The dashboard has no AppBar, so the drawer is opened by hand from the
+  /// topbar. [Builder] supplies a context below this Scaffold, which is what
+  /// `Scaffold.of` needs to find it.
   Widget _buildMenuButton() {
     return SizedBox(
       width: 42,
       height: 42,
-      child: IconButton(
-        tooltip: 'Open menu',
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        splashRadius: 22,
-        icon: const _ModernMenuIcon(),
-        onPressed: _openDrawer,
+      child: Builder(
+        builder: (context) => IconButton(
+          tooltip: 'Open menu',
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          splashRadius: 22,
+          icon: const MenuLinesIcon(),
+          onPressed: () {
+            // Otherwise the keyboard raised by the search field covers it.
+            _searchFocusNode.unfocus();
+            Scaffold.of(context).openDrawer();
+          },
+        ),
       ),
     );
   }
@@ -733,7 +595,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       borderRadius: BorderRadius.circular(18),
       onTap: () {
         Navigator.pushNamed(context, RouteNames.profile).then((_) {
-          _loadProfileSummary();
+          _profileStore.refresh();
         });
       },
       child: Container(
@@ -748,11 +610,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _ProfileImageOrInitials(
-              initials: _profileInitials,
-              imageUrl: _profileImageUrl,
-              size: 34,
-              fontSize: 12,
+            ValueListenableBuilder<ProfileSummary>(
+              valueListenable: _profileStore.summary,
+              builder: (context, profile, _) => ProfileAvatar(
+                initials: profile.initials,
+                imageUrl: profile.imageUrl,
+                size: 34,
+                fontSize: 12,
+              ),
             ),
             const Icon(
               Icons.keyboard_arrow_down_rounded,
@@ -840,37 +705,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// The header's search field.
+  ///
+  /// Hand-rolled rather than a themed [InputDecoration] so the pill keeps the
+  /// exact resting look it had as a fake bar; the [TextField] is borderless and
+  /// only supplies the editing behaviour. The trailing slot shows the (purely
+  /// decorative) tune icon at rest and the clear button once there is text, so
+  /// the pill never changes width.
   Widget _buildSearchBar() {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: _openSearch,
-      child: Container(
-        height: 52,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: AppColors.inputFill.withValues(alpha: 0.80),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.inputBorder),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.search_rounded, color: AppColors.textSoft),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Search stores, brands, offers',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+    final hasText = _searchController.text.isNotEmpty;
+
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: AppColors.inputFill.withValues(alpha: 0.80),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.inputBorder),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search_rounded, color: AppColors.textSoft),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              textInputAction: TextInputAction.search,
+              textAlignVertical: TextAlignVertical.center,
+              onChanged: _onSearchQueryChanged,
+              onSubmitted: (value) {
+                final trimmed = value.trim();
+                if (trimmed.isNotEmpty) {
+                  _searchDebounceTimer?.cancel();
+                  _performSearch(trimmed);
+                }
+              },
+              cursorColor: AppColors.primary,
+              style: const TextStyle(
+                color: AppColors.textDark,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                hintText: 'Search stores, brands, offers',
+                hintStyle: TextStyle(
                   color: AppColors.textSoft,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            Icon(Icons.tune_rounded, color: AppColors.primary, size: 20),
-          ],
-        ),
+          ),
+          if (hasText)
+            IconButton(
+              onPressed: _clearSearch,
+              icon: const Icon(Icons.close_rounded),
+              color: AppColors.textSoft,
+              iconSize: 20,
+              // Default IconButton sizing would fight the pill's padding.
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              splashRadius: 18,
+              tooltip: 'Clear search',
+            )
+          else
+            const Icon(Icons.tune_rounded, color: AppColors.primary, size: 20),
+        ],
       ),
     );
   }
@@ -903,12 +809,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case ViewState.empty:
         return const _SectionInlineEmpty(message: 'No categories yet');
       case ViewState.success:
+        final categories = _topCategories;
+        if (categories.isEmpty) {
+          return const _SectionInlineEmpty(message: 'No categories yet');
+        }
         return ListView.separated(
           scrollDirection: Axis.horizontal,
-          itemCount: _categories.length,
+          itemCount: categories.length,
           separatorBuilder: (_, _) => const SizedBox(width: 6),
           itemBuilder: (context, index) {
-            final category = _categories[index];
+            final category = categories[index];
             return CategoryCircleTile(
               category: category,
               onTap: () => _openCategory(category),
@@ -1340,167 +1250,6 @@ class _SectionInlineEmpty extends StatelessWidget {
   }
 }
 
-class _ProfileImageOrInitials extends StatelessWidget {
-  const _ProfileImageOrInitials({
-    required this.initials,
-    required this.imageUrl,
-    required this.size,
-    required this.fontSize,
-  });
-
-  final String initials;
-  final String imageUrl;
-  final double size;
-  final double fontSize;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasImage = imageUrl.trim().isNotEmpty;
-
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        shape: BoxShape.circle,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: hasImage
-          ? Image.network(
-              imageUrl,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return _ProfileInitialsLabel(
-                  initials: initials,
-                  fontSize: fontSize,
-                );
-              },
-            )
-          : _ProfileInitialsLabel(initials: initials, fontSize: fontSize),
-    );
-  }
-}
-
-class _ProfileInitialsLabel extends StatelessWidget {
-  const _ProfileInitialsLabel({
-    required this.initials,
-    required this.fontSize,
-  });
-
-  final String initials;
-  final double fontSize;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      initials,
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: fontSize,
-        fontWeight: FontWeight.w800,
-      ),
-    );
-  }
-}
-
-class _DrawerMenuItemData {
-  const _DrawerMenuItemData({
-    required this.label,
-    required this.icon,
-    this.isActive = false,
-    this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool isActive;
-  final VoidCallback? onTap;
-}
-
-class _DrawerMenuRow extends StatelessWidget {
-  const _DrawerMenuRow({required this.item});
-
-  final _DrawerMenuItemData item;
-
-  @override
-  Widget build(BuildContext context) {
-    final foregroundColor = item.isActive
-        ? AppColors.primary
-        : AppColors.textMid;
-    final backgroundColor = item.isActive
-        ? AppColors.primary.withValues(alpha: 0.12)
-        : Colors.white.withValues(alpha: 0.34);
-    final iconBackgroundColor = item.isActive
-        ? AppColors.primary.withValues(alpha: 0.16)
-        : Colors.white.withValues(alpha: 0.70);
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: item.onTap,
-      child: Container(
-        height: 52,
-        padding: const EdgeInsets.only(left: 8, right: 12),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: item.isActive
-                ? AppColors.primary.withValues(alpha: 0.12)
-                : Colors.white.withValues(alpha: 0.44),
-          ),
-        ),
-        child: Row(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 4,
-              height: item.isActive ? 24 : 0,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-            const SizedBox(width: 9),
-            Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: iconBackgroundColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(item.icon, color: foregroundColor, size: 19),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: item.isActive ? AppColors.textDark : AppColors.textMid,
-                  fontSize: 14,
-                  fontWeight: item.isActive ? FontWeight.w900 : FontWeight.w700,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: foregroundColor.withValues(
-                alpha: item.isActive ? 0.75 : 0.45,
-              ),
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _StepTile extends StatelessWidget {
   const _StepTile({
     required this.number,
@@ -1558,41 +1307,6 @@ class _StepTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: AppColors.textSoft, fontSize: 11),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModernMenuIcon extends StatelessWidget {
-  const _ModernMenuIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 22,
-      height: 18,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 18,
-            height: 2,
-            decoration: BoxDecoration(
-              color: AppColors.textDark,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            width: 13,
-            height: 2,
-            decoration: BoxDecoration(
-              color: AppColors.textDark,
-              borderRadius: BorderRadius.circular(999),
-            ),
           ),
         ],
       ),

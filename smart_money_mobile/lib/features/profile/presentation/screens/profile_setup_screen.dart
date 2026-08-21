@@ -7,6 +7,7 @@ import '../../../../core/widgets/login_demo_widgets.dart';
 import '../../../auth/data/services/token_storage_service.dart';
 import '../../data/models/profile_response.dart';
 import '../../data/services/profile_api_service.dart';
+import '../../../shell/presentation/screens/main_shell.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -347,7 +348,17 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       children: [
         IconButton.filledTonal(
           onPressed: () {
-            Navigator.pushReplacementNamed(context, RouteNames.dashboard);
+            // This screen is reached by being pushed on top of the shell, so
+            // popping is what actually reveals it again — switching the shell's
+            // tab would only change what sits underneath this route. Popping
+            // also returns to whichever tab the user came from.
+            final navigator = Navigator.of(context);
+            if (navigator.canPop()) {
+              navigator.pop();
+              return;
+            }
+            // Hosted as the shell's profile tab: nothing to pop, so switch tabs.
+            MainShell.shellKey.currentState?.goToTab(ShellTab.home);
           },
           icon: const Icon(Icons.arrow_back_rounded),
           tooltip: 'Back to dashboard',

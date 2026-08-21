@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using SmartMoney.Application.Abstractions.Messaging;
+using SmartMoney.Application.Contracts.Affiliate;
 using SmartMoney.Application.Contracts.Categories;
 using SmartMoney.Application.Contracts.Identity.Login;
 using SmartMoney.Application.Contracts.Identity.RefreshToken;
@@ -9,6 +10,9 @@ using SmartMoney.Application.Contracts.Identity.VerifyEmailOtp;
 using SmartMoney.Application.Contracts.Offers;
 using SmartMoney.Application.Contracts.Search;
 using SmartMoney.Application.Contracts.Stores;
+using SmartMoney.Application.Features.Affiliate.CreateAffiliateClick;
+using SmartMoney.Application.Features.Affiliate.IngestAffiliateConversion;
+using SmartMoney.Application.Features.Affiliate.ResolveAffiliateRedirect;
 using SmartMoney.Application.Features.Categories.GetCategories;
 using SmartMoney.Application.Features.Identity.Login;
 using SmartMoney.Application.Features.Identity.RefreshToken;
@@ -65,6 +69,14 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IQueryHandler<SearchQuery,SearchResultResponse>,SearchQueryHandler>();
 
         services.AddScoped<IQueryHandler<GetStoreOffersQuery,IReadOnlyList<OfferListItemResponse>>,GetStoreOffersQueryHandler>();
+
+        services.AddScoped<ICommandHandler<CreateAffiliateClickCommand,CreateAffiliateClickResponse?>,CreateAffiliateClickCommandHandler>();
+
+        services.AddScoped<ICommandHandler<ResolveAffiliateRedirectCommand,string?>,ResolveAffiliateRedirectCommandHandler>();
+
+        services.AddScoped<IngestAffiliateConversionValidator>();
+
+        services.AddScoped<ICommandHandler<IngestAffiliateConversionCommand,IngestAffiliateConversionResponse>,IngestAffiliateConversionCommandHandler>();
 
         return services;
     }

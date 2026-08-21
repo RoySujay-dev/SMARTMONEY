@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using SmartMoney.Application.Abstractions.Persistence;
 using SmartMoney.Domain.Entities;
 using SmartMoney.Infrastructure.Persistence.Context;
@@ -33,6 +34,21 @@ public sealed class OfferRepository : IOfferRepository
             .ThenBy(offer => offer.Title)
             .ToListAsync(cancellationToken);
     }
+    public async Task<Offer?> GetActiveByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var currentTime = DateTime.UtcNow;
+
+        return await _dbContext.Offers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(offer =>
+                offer.IsActive &&
+                offer.Id == id &&
+                (!offer.StartAt.HasValue ||
+                    offer.StartAt.Value <= currentTime) &&
+                (!offer.EndAt.HasValue ||
+                    offer.EndAt.Value >= currentTime),
+                cancellationToken);
+    }
     public async Task<Offer?> GetActiveBySlugAsync(string slug,CancellationToken cancellationToken = default)
     {
         var currentTime = DateTime.UtcNow;
@@ -55,6 +71,7 @@ public sealed class OfferRepository : IOfferRepository
     public async Task<IReadOnlyList<Offer>> SearchAsync(string searchTerm,CancellationToken cancellationToken = default)
     {
         var currentTime = DateTime.UtcNow;
+        var pattern = SearchPattern.WordPrefix(searchTerm);
 
         return await _dbContext.Offers
             .AsNoTracking()
@@ -65,15 +82,15 @@ public sealed class OfferRepository : IOfferRepository
                 (!offer.StartAt.HasValue || offer.StartAt.Value <= currentTime) &&
                 (!offer.EndAt.HasValue || offer.EndAt.Value >= currentTime) &&
                 (
-                    EF.Functions.ILike(offer.Title, $"%{searchTerm}%") ||
-                    EF.Functions.ILike(offer.Slug, $"%{searchTerm}%") ||
+                    Regex.IsMatch(offer.Title, pattern, RegexOptions.IgnoreCase) ||
+                    Regex.IsMatch(offer.Slug, pattern, RegexOptions.IgnoreCase) ||
                     (
-                        offer.ShortDescription != null && EF.Functions.ILike(offer.ShortDescription,$"%{searchTerm}%")
+                        offer.ShortDescription != null && Regex.IsMatch(offer.ShortDescription, pattern, RegexOptions.IgnoreCase)
                     ) ||
                     (
-                        offer.CashbackText != null && EF.Functions.ILike(offer.CashbackText,$"%{searchTerm}%")
+                        offer.CashbackText != null && Regex.IsMatch(offer.CashbackText, pattern, RegexOptions.IgnoreCase)
                     ) ||
-                    EF.Functions.ILike(offer.Store.Name,$"%{searchTerm}%")
+                    Regex.IsMatch(offer.Store.Name, pattern, RegexOptions.IgnoreCase)
                 ))
             .OrderByDescending(offer => offer.IsFeatured)
             .ThenBy(offer => offer.Priority)

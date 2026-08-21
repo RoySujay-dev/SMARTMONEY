@@ -4,8 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using SmartMoney.Application.Abstractions.Affiliate;
 using SmartMoney.Application.Abstractions.Authentication;
 using SmartMoney.Application.Abstractions.Persistence;
+using SmartMoney.Infrastructure.Affiliate;
 using SmartMoney.Infrastructure.Authentication;
 using SmartMoney.Infrastructure.Persistence.Context;
 using SmartMoney.Infrastructure.Persistence.Repositories;
@@ -35,6 +37,10 @@ public static class DependencyInjection
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IStoreRepository, StoreRepository>();
         services.AddScoped<IOfferRepository, OfferRepository>();
+        services.AddScoped<IAffiliateClickRepository, AffiliateClickRepository>();
+        services.AddScoped<IStoreAffiliateMappingRepository, StoreAffiliateMappingRepository>();
+        services.AddScoped<IAffiliateNetworkRepository, AffiliateNetworkRepository>();
+        services.AddScoped<IAffiliateConversionRepository, AffiliateConversionRepository>();
 
         services.AddScoped<IUnitOfWork>(serviceProvider =>
             serviceProvider.GetRequiredService<SmartMoneyDbContext>());
@@ -45,6 +51,9 @@ public static class DependencyInjection
         services.AddSingleton<IOtpGenerator, SecureOtpGenerator>();
         services.AddSingleton<IEmailOtpSender, ConsoleEmailOtpSender>();
         services.AddSingleton<IOtpHasher, SecureOtpHasher>();
+
+        // Affiliate services
+        services.AddSingleton<IAffiliateTokenGenerator, SecureAffiliateTokenGenerator>();
         
 
 

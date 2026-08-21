@@ -22,6 +22,140 @@ namespace SmartMoney.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SmartMoney.Domain.Entities.AffiliateClick", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AffiliateNetworkId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DestinationUrl")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid?>("OfferId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RedirectToken")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("RedirectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("StoreId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TrackedUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("TrackingReference")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AffiliateNetworkId");
+
+                    b.HasIndex("OfferId");
+
+                    b.HasIndex("RedirectToken")
+                        .IsUnique();
+
+                    b.HasIndex("StoreId");
+
+                    b.HasIndex("TrackingReference")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("AffiliateClicks", (string)null);
+                });
+
+            modelBuilder.Entity("SmartMoney.Domain.Entities.AffiliateConversion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AffiliateClickId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AffiliateNetworkId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("CommissionAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("NetworkStatus")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NetworkTransactionId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("NetworkUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("OrderAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("RawPayload")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("TrackingReference")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("TransactionOccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AffiliateClickId");
+
+                    b.HasIndex("NetworkStatus");
+
+                    b.HasIndex("NetworkUpdatedAt");
+
+                    b.HasIndex("TrackingReference");
+
+                    b.HasIndex("AffiliateNetworkId", "NetworkTransactionId")
+                        .IsUnique();
+
+                    b.ToTable("AffiliateConversions", (string)null);
+                });
+
             modelBuilder.Entity("SmartMoney.Domain.Entities.AffiliateNetwork", b =>
                 {
                     b.Property<Guid>("Id")
@@ -679,6 +813,58 @@ namespace SmartMoney.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Wallets", (string)null);
+                });
+
+            modelBuilder.Entity("SmartMoney.Domain.Entities.AffiliateClick", b =>
+                {
+                    b.HasOne("SmartMoney.Domain.Entities.AffiliateNetwork", "AffiliateNetwork")
+                        .WithMany()
+                        .HasForeignKey("AffiliateNetworkId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartMoney.Domain.Entities.Offer", "Offer")
+                        .WithMany()
+                        .HasForeignKey("OfferId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SmartMoney.Domain.Entities.Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartMoney.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AffiliateNetwork");
+
+                    b.Navigation("Offer");
+
+                    b.Navigation("Store");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SmartMoney.Domain.Entities.AffiliateConversion", b =>
+                {
+                    b.HasOne("SmartMoney.Domain.Entities.AffiliateClick", "AffiliateClick")
+                        .WithMany()
+                        .HasForeignKey("AffiliateClickId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SmartMoney.Domain.Entities.AffiliateNetwork", "AffiliateNetwork")
+                        .WithMany()
+                        .HasForeignKey("AffiliateNetworkId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AffiliateClick");
+
+                    b.Navigation("AffiliateNetwork");
                 });
 
             modelBuilder.Entity("SmartMoney.Domain.Entities.Banner", b =>

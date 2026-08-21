@@ -7,7 +7,6 @@ import '../../features/browsing/presentation/screens/categories_screen.dart';
 import '../../features/browsing/presentation/screens/category_stores_screen.dart';
 import '../../features/browsing/presentation/screens/offer_details_screen.dart';
 import '../../features/browsing/presentation/screens/offers_screen.dart';
-import '../../features/browsing/presentation/screens/search_screen.dart';
 import '../../features/browsing/presentation/screens/store_details_screen.dart';
 import '../../features/browsing/presentation/screens/stores_screen.dart';
 import '../../features/shell/presentation/screens/main_shell.dart';
@@ -30,7 +29,11 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const RegisterScreen());
 
       case RouteNames.dashboard:
-        return MaterialPageRoute(builder: (_) => const MainShell());
+        // Keyed so the drawer can switch tabs from pushed routes that sit
+        // above the shell rather than inside it.
+        return MaterialPageRoute(
+          builder: (_) => MainShell(key: MainShell.shellKey),
+        );
 
       case RouteNames.profile:
         return MaterialPageRoute(builder: (_) => const ProfileSetupScreen());
@@ -73,9 +76,6 @@ class AppRoutes {
         return MaterialPageRoute(
           builder: (_) => OfferDetailsScreen(offerSlug: slug),
         );
-
-      case RouteNames.search:
-        return MaterialPageRoute(builder: (_) => const SearchScreen());
 
       default:
         return MaterialPageRoute(
