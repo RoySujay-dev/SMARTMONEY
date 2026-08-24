@@ -139,6 +139,11 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
     final details = _details;
     if (details == null || _isCreatingClick) return;
 
+    // Reserved synchronously, before the click-creation `await` below —
+    // otherwise the eventual window.open() falls outside the browser's user-
+    // gesture window and gets silently popup-blocked on Flutter web.
+    final reservedTab = ExternalLink.reserve();
+
     setState(() => _isCreatingClick = true);
 
     try {
@@ -147,6 +152,9 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
         final click = await _affiliateService.createClick(storeId: details.id);
         url = '${_affiliateService.baseUrl}${click.redirectPath}';
       } on ApiException catch (e) {
+        if (e.isUnauthorized || !e.isNotFound) {
+          ExternalLink.cancelReserved(reservedTab);
+        }
         if (!mounted) return;
         if (e.isUnauthorized) {
           _promptSignIn(e.message);
@@ -163,11 +171,12 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
         url = details.websiteUrl;
       }
 
-      final opened = await ExternalLink.open(url);
+      final opened = await ExternalLink.openReserved(reservedTab, url);
       if (!mounted || opened) return;
 
       _showSnack('Could not open the store website.');
     } catch (_) {
+      ExternalLink.cancelReserved(reservedTab);
       if (!mounted) return;
       _showSnack('Something went wrong. Please try again.');
     } finally {
