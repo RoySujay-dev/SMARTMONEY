@@ -19,6 +19,13 @@ public sealed class AffiliateClickRepository : IAffiliateClickRepository
         await _dbContext.AffiliateClicks.AddAsync(click, cancellationToken);
     }
 
+    public async Task<AffiliateClick?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.AffiliateClicks
+            .AsNoTracking()
+            .FirstOrDefaultAsync(click => click.Id == id, cancellationToken);
+    }
+
     public async Task<AffiliateClick?> GetByRedirectTokenAsync(string redirectToken, CancellationToken cancellationToken = default)
     {
         return await _dbContext.AffiliateClicks

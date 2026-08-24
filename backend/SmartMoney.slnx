@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/tests/">
+    <Project Path="tests/SmartMoney.Application.Tests/SmartMoney.Application.Tests.csproj" />
+  </Folder>
   <Project Path="src/SmartMoney.Api/SmartMoney.Api.csproj" />
   <Project Path="src/SmartMoney.Application/SmartMoney.Application.csproj" Id="ffb75bc8-922e-46c1-9d3d-474505685ced" />
   <Project Path="src/SmartMoney.Domain/SmartMoney.Domain.csproj" Id="7aa794df-3164-4383-b54b-ea4f7caaeb20" />

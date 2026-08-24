@@ -13,6 +13,7 @@ public sealed class CreateAffiliateClickCommandHandler
     private readonly IOfferRepository _offerRepository;
     private readonly IAffiliateClickRepository _clickRepository;
     private readonly IAffiliateTokenGenerator _tokenGenerator;
+    private readonly IAffiliateNetworkClient _networkClient;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateAffiliateClickCommandHandler(
@@ -20,12 +21,14 @@ public sealed class CreateAffiliateClickCommandHandler
         IOfferRepository offerRepository,
         IAffiliateClickRepository clickRepository,
         IAffiliateTokenGenerator tokenGenerator,
+        IAffiliateNetworkClient networkClient,
         IUnitOfWork unitOfWork)
     {
         _mappingRepository = mappingRepository;
         _offerRepository = offerRepository;
         _clickRepository = clickRepository;
         _tokenGenerator = tokenGenerator;
+        _networkClient = networkClient;
         _unitOfWork = unitOfWork;
     }
 
@@ -66,6 +69,12 @@ public sealed class CreateAffiliateClickCommandHandler
             RedirectToken = _tokenGenerator.GenerateRedirectToken(),
             DestinationUrl = destinationUrl
         };
+
+        // Generated here (not at redirect time) so a provider failure surfaces
+        // while the user is still in the app, and the redirect stays fast and
+        // dependency-free. Null keeps the untracked destination as fallback.
+        click.TrackedUrl = await _networkClient.BuildTrackedUrlAsync(
+            destinationUrl, click.TrackingReference, cancellationToken);
 
         await _clickRepository.AddAsync(click, cancellationToken);
 

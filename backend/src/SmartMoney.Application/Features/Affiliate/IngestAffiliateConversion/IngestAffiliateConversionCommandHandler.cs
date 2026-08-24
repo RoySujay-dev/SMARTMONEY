@@ -15,6 +15,7 @@ public sealed class IngestAffiliateConversionCommandHandler
     private readonly IAffiliateNetworkRepository _networkRepository;
     private readonly IAffiliateConversionRepository _conversionRepository;
     private readonly IAffiliateClickRepository _clickRepository;
+    private readonly ConversionCashbackProcessor _cashbackProcessor;
     private readonly IUnitOfWork _unitOfWork;
 
     public IngestAffiliateConversionCommandHandler(
@@ -22,12 +23,14 @@ public sealed class IngestAffiliateConversionCommandHandler
         IAffiliateNetworkRepository networkRepository,
         IAffiliateConversionRepository conversionRepository,
         IAffiliateClickRepository clickRepository,
+        ConversionCashbackProcessor cashbackProcessor,
         IUnitOfWork unitOfWork)
     {
         _validator = validator;
         _networkRepository = networkRepository;
         _conversionRepository = conversionRepository;
         _clickRepository = clickRepository;
+        _cashbackProcessor = cashbackProcessor;
         _unitOfWork = unitOfWork;
     }
 
@@ -121,6 +124,10 @@ public sealed class IngestAffiliateConversionCommandHandler
         {
             conversion.UpdatedAt = DateTime.UtcNow;
         }
+
+        // Before SaveChanges so the cashback creation/transition commits
+        // atomically with the conversion it derives from.
+        await _cashbackProcessor.ProcessAsync(conversion, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

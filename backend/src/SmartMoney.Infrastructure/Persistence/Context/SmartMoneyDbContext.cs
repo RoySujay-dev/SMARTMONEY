@@ -24,6 +24,8 @@ public sealed class SmartMoneyDbContext : DbContext, IUnitOfWork
     public DbSet<EmailVerificationOtp> EmailVerificationOtps
     => Set<EmailVerificationOtp>();
 
+    public DbSet<PasswordResetOtp> PasswordResetOtps => Set<PasswordResetOtp>();
+
     public DbSet<Category> Categories => Set<Category>();
 
     public DbSet<Store> Stores => Set<Store>();
@@ -43,6 +45,8 @@ public sealed class SmartMoneyDbContext : DbContext, IUnitOfWork
         => Set<AffiliateConversion>();
 
     public DbSet<Banner> Banners => Set<Banner>();
+
+    public DbSet<CashbackSettings> CashbackSettings => Set<CashbackSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
