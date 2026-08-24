@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
+import '../../../../core/network/api_config.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../auth/data/models/refresh_token_request.dart';
 import '../../../auth/data/services/auth_api_service.dart';
 import '../../../auth/data/services/token_storage_service.dart';
@@ -15,7 +17,7 @@ class ProfileApiService {
     http.Client? client,
     TokenStorageService tokenStorageService = const TokenStorageService(),
     AuthApiService? authApiService,
-    this.baseUrl = 'http://localhost:5256',
+    this.baseUrl = ApiConfig.baseUrl,
   }) : _client = client ?? http.Client(),
        _tokenStorageService = tokenStorageService,
        _authApiService = authApiService ?? AuthApiService(baseUrl: baseUrl),
@@ -27,6 +29,10 @@ class ProfileApiService {
   final bool _ownsAuthApiService;
   final String baseUrl;
 
+  static const String _signInMessage = 'Sign in to view your profile.';
+  static const String _sessionExpiredMessage =
+      'Your session has expired. Please sign in again.';
+
   Future<ProfileResponse> getProfile() async {
     final response = await _sendAuthorizedRequest(
       (headers) => _client.get(
@@ -36,9 +42,9 @@ class ProfileApiService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        'Profile load failed with status ${response.statusCode}: '
-        '${response.body}',
+      throw ApiException(
+        'Profile load failed. Please try again.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -61,9 +67,9 @@ class ProfileApiService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        'Name update failed with status ${response.statusCode}: '
-        '${response.body}',
+      throw ApiException(
+        'Name update failed. Please try again.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -86,9 +92,9 @@ class ProfileApiService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        'Password update failed with status ${response.statusCode}: '
-        '${response.body}',
+      throw ApiException(
+        'Password update failed. Please try again.',
+        statusCode: response.statusCode,
       );
     }
   }
@@ -119,9 +125,9 @@ class ProfileApiService {
     });
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        'Profile photo upload failed with status ${response.statusCode}: '
-        '${response.body}',
+      throw ApiException(
+        'Profile photo upload failed. Please try again.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -138,7 +144,7 @@ class ProfileApiService {
     final token = await _tokenStorageService.getAccessToken();
 
     if (token == null || token.isEmpty) {
-      throw StateError('No access token is available.');
+      throw const ApiException(_signInMessage, statusCode: 401);
     }
 
     return {
@@ -159,7 +165,10 @@ class ProfileApiService {
     final refreshed = await _refreshAccessToken();
 
     if (!refreshed) {
-      return response;
+      // Distinguishes "session is truly dead" (revoked/expired refresh
+      // token) from any other failure, so callers can prompt a re-login
+      // instead of showing a generic, unexplained error.
+      throw const ApiException(_sessionExpiredMessage, statusCode: 401);
     }
 
     return send(await _authorizedHeaders());

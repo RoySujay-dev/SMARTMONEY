@@ -12,6 +12,10 @@ using SmartMoney.Application.Contracts.Identity.ResendEmailOtp;
 using SmartMoney.Application.Features.Identity.ResendEmailOtp;
 using SmartMoney.Application.Contracts.Identity.RefreshToken;
 using SmartMoney.Application.Features.Identity.RefreshToken;
+using SmartMoney.Application.Contracts.Identity.ForgotPassword;
+using SmartMoney.Application.Features.Identity.ForgotPassword;
+using SmartMoney.Application.Contracts.Identity.ResetPassword;
+using SmartMoney.Application.Features.Identity.ResetPassword;
 
 namespace SmartMoney.Api.Controllers;
 
@@ -29,6 +33,10 @@ public sealed class IdentityController : ControllerBase
 
     private readonly ICommandHandler<RefreshTokenCommand,RefreshTokenResponse> _refreshTokenHandler;
 
+    private readonly ICommandHandler<ForgotPasswordCommand,ForgotPasswordResponse> _forgotPasswordHandler;
+
+    private readonly ICommandHandler<ResetPasswordCommand,ResetPasswordResponse> _resetPasswordHandler;
+
     public IdentityController(
         ICommandHandler<
             RegisterUserCommand,
@@ -44,13 +52,21 @@ public sealed class IdentityController : ControllerBase
             ResendEmailOtpResponse> resendEmailOtpHandler,
         ICommandHandler<
             RefreshTokenCommand,
-            RefreshTokenResponse> refreshTokenHandler)
+            RefreshTokenResponse> refreshTokenHandler,
+        ICommandHandler<
+            ForgotPasswordCommand,
+            ForgotPasswordResponse> forgotPasswordHandler,
+        ICommandHandler<
+            ResetPasswordCommand,
+            ResetPasswordResponse> resetPasswordHandler)
     {
         _registerUserHandler = registerUserHandler;
         _loginUserHandler = loginUserHandler;
         _verifyEmailOtpHandler = verifyEmailOtpHandler;
         _resendEmailOtpHandler = resendEmailOtpHandler;
         _refreshTokenHandler = refreshTokenHandler;
+        _forgotPasswordHandler = forgotPasswordHandler;
+        _resetPasswordHandler = resetPasswordHandler;
     }
 
     [AllowAnonymous]
@@ -227,6 +243,70 @@ public sealed class IdentityController : ControllerBase
         catch (InvalidOperationException exception)
         {
             return Unauthorized(new
+            {
+                message = exception.Message
+            });
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(typeof(ForgotPasswordResponse),StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request,CancellationToken cancellationToken)
+    {
+        var command = new ForgotPasswordCommand(request.Email);
+
+        try
+        {
+            ForgotPasswordResponse response =
+                await _forgotPasswordHandler.HandleAsync(
+                    command,
+                    cancellationToken);
+
+            // Always 200 with the same generic message, whether or not the
+            // email belongs to an account — see the handler for why.
+            return Ok(response);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new
+            {
+                message = exception.Message
+            });
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    [ProducesResponseType(typeof(ResetPasswordResponse),StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request,CancellationToken cancellationToken)
+    {
+        var command = new ResetPasswordCommand(
+            request.Email,
+            request.Otp,
+            request.NewPassword);
+
+        try
+        {
+            ResetPasswordResponse response =
+                await _resetPasswordHandler.HandleAsync(
+                    command,
+                    cancellationToken);
+
+            return Ok(response);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new
+            {
+                message = exception.Message
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new
             {
                 message = exception.Message
             });

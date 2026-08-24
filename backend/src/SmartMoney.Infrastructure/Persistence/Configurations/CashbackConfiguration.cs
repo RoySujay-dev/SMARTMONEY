@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SmartMoney.Domain.Entities;
 
@@ -12,17 +12,15 @@ public sealed class CashbackConfiguration : IEntityTypeConfiguration<Cashback>
 
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.CommissionAmount)
-            .HasPrecision(18, 2);
-
         builder.Property(x => x.CashbackAmount)
             .HasPrecision(18, 2);
 
+        // Stored as the enum NAME ("Pending", "AwaitingAdminReview", ...) so
+        // the table is readable directly and admin tooling never has to map
+        // magic numbers. Renaming an enum member is a data migration.
         builder.Property(x => x.Status)
-            .HasConversion<int>()
-            .IsRequired();
-
-        builder.Property(x => x.PurchaseDate)
+            .HasConversion<string>()
+            .HasMaxLength(32)
             .IsRequired();
 
         builder.Property(x => x.ExpectedConfirmationDate)
@@ -37,5 +35,17 @@ public sealed class CashbackConfiguration : IEntityTypeConfiguration<Cashback>
             .WithMany()
             .HasForeignKey(x => x.WalletId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(x => x.AffiliateConversion)
+            .WithMany()
+            .HasForeignKey(x => x.AffiliateConversionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // One cashback per conversion — the second dedup layer behind the
+        // UNIQUE(AffiliateNetworkId, NetworkTransactionId) conversion index.
+        builder.HasIndex(x => x.AffiliateConversionId)
+            .IsUnique();
+
+        builder.HasIndex(x => new { x.UserId, x.Status });
     }
 }

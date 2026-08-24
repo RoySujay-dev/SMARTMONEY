@@ -1,4 +1,5 @@
-﻿using SmartMoney.Application.Abstractions.Persistence;
+﻿using Microsoft.EntityFrameworkCore;
+using SmartMoney.Application.Abstractions.Persistence;
 using SmartMoney.Domain.Entities;
 using SmartMoney.Infrastructure.Persistence.Context;
 
@@ -18,5 +19,15 @@ public sealed class WalletRepository : IWalletRepository
         CancellationToken cancellationToken = default)
     {
         await _context.Wallets.AddAsync(wallet, cancellationToken);
+    }
+
+    public async Task<Wallet?> GetByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Wallets
+            .FirstOrDefaultAsync(
+                wallet => wallet.UserId == userId,
+                cancellationToken);
     }
 }

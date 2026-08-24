@@ -275,11 +275,10 @@ namespace SmartMoney.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("CashbackAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                    b.Property<Guid>("AffiliateConversionId")
+                        .HasColumnType("uuid");
 
-                    b.Property<decimal>("CommissionAmount")
+                    b.Property<decimal>("CashbackAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
@@ -292,14 +291,10 @@ namespace SmartMoney.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("ExpectedConfirmationDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("PurchaseDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TransactionId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -312,11 +307,38 @@ namespace SmartMoney.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("AffiliateConversionId")
+                        .IsUnique();
 
                     b.HasIndex("WalletId");
 
+                    b.HasIndex("UserId", "Status");
+
                     b.ToTable("Cashbacks", (string)null);
+                });
+
+            modelBuilder.Entity("SmartMoney.Domain.Entities.CashbackSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ConfirmationWindowDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("UserSharePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CashbackSettings", (string)null);
                 });
 
             modelBuilder.Entity("SmartMoney.Domain.Entities.Category", b =>
@@ -507,6 +529,44 @@ namespace SmartMoney.Infrastructure.Persistence.Migrations
                     b.HasIndex("IsActive", "IsFeatured", "Priority");
 
                     b.ToTable("Offers", (string)null);
+                });
+
+            modelBuilder.Entity("SmartMoney.Domain.Entities.PasswordResetOtp", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "IsUsed", "ExpiresAt");
+
+                    b.ToTable("PasswordResetOtps", (string)null);
                 });
 
             modelBuilder.Entity("SmartMoney.Domain.Entities.RefreshToken", b =>
@@ -893,6 +953,12 @@ namespace SmartMoney.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("SmartMoney.Domain.Entities.Cashback", b =>
                 {
+                    b.HasOne("SmartMoney.Domain.Entities.AffiliateConversion", "AffiliateConversion")
+                        .WithMany()
+                        .HasForeignKey("AffiliateConversionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("SmartMoney.Domain.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -904,6 +970,8 @@ namespace SmartMoney.Infrastructure.Persistence.Migrations
                         .HasForeignKey("WalletId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("AffiliateConversion");
 
                     b.Navigation("User");
 
@@ -930,6 +998,17 @@ namespace SmartMoney.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("SmartMoney.Domain.Entities.PasswordResetOtp", b =>
+                {
+                    b.HasOne("SmartMoney.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SmartMoney.Domain.Entities.RefreshToken", b =>

@@ -23,13 +23,37 @@ public sealed class ConsoleEmailOtpSender : IEmailOtpSender
 
         _logger.LogInformation(
             """
-            
+
             ========================================
             SMART MONEY EMAIL VERIFICATION OTP
             Email: {Email}
             OTP: {Otp}
             ========================================
-            
+
+            """,
+            email,
+            otp);
+
+        return Task.CompletedTask;
+    }
+
+    public Task SendPasswordResetOtpAsync(
+        string email,
+        string otp,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        ArgumentException.ThrowIfNullOrWhiteSpace(otp);
+
+        _logger.LogInformation(
+            """
+
+            ========================================
+            SMART MONEY PASSWORD RESET OTP
+            Email: {Email}
+            OTP: {Otp}
+            ========================================
+
             """,
             email,
             otp);

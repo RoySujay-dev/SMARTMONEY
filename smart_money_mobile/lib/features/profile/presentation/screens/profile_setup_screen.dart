@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../app/routes/route_names.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/widgets/login_demo_widgets.dart';
 import '../../../auth/data/services/token_storage_service.dart';
 import '../../data/models/profile_response.dart';
@@ -81,6 +82,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         _nameController.text = profile.fullName;
         _isLoading = false;
       });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (e.isUnauthorized) {
+        _promptSignIn(e.message);
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
 
@@ -249,6 +263,26 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     if (!mounted) return;
 
     Navigator.pushNamedAndRemoveUntil(context, RouteNames.login, (_) => false);
+  }
+
+  /// The session is unrecoverable (revoked or expired refresh token) — tokens
+  /// are already cleared by [ProfileApiService], so this only needs to offer
+  /// a way back to Login rather than leaving a broken screen with no path
+  /// forward.
+  void _promptSignIn(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: 'Sign in',
+          onPressed: () => Navigator.pushNamedAndRemoveUntil(
+            context,
+            RouteNames.login,
+            (_) => false,
+          ),
+        ),
+      ),
+    );
   }
 
   void _showMvpMessage(String label) {

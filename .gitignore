@@ -27,3 +27,9 @@ Desktop.ini
 
 # macOS
 .DS_Store
+
+# Secrets — local configuration must never be committed.
+# Real values live in .NET User Secrets (dotnet user-secrets) or env vars.
+**/appsettings.Development.json
+.env
+*.secrets.json

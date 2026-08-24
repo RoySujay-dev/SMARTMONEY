@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../../core/network/api_config.dart';
 import '../models/register_response.dart';
 import 'package:http/http.dart' as http;
 import '../models/register_request.dart';
@@ -8,9 +9,13 @@ import '../models/refresh_token_request.dart';
 import '../models/refresh_token_response.dart';
 import '../models/login_request.dart';
 import '../models/login_response.dart';
+import '../models/forgot_password_request.dart';
+import '../models/forgot_password_response.dart';
+import '../models/reset_password_request.dart';
+import '../models/reset_password_response.dart';
 
 class AuthApiService {
-  AuthApiService({http.Client? client, this.baseUrl = 'http://localhost:5256'})
+  AuthApiService({http.Client? client, this.baseUrl = ApiConfig.baseUrl})
     : _client = client ?? http.Client();
 
   final http.Client _client;
@@ -81,10 +86,7 @@ class AuthApiService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        'Login failed with status ${response.statusCode}: '
-        '${response.body}',
-      );
+      throw Exception(_extractErrorMessage(response, 'Invalid email or password.'));
     }
 
     final decodedBody = jsonDecode(response.body);
@@ -117,5 +119,63 @@ class AuthApiService {
     }
 
     return RefreshTokenResponse.fromJson(decodedBody);
+  }
+
+  Future<ForgotPasswordResponse> forgotPassword(
+    ForgotPasswordRequest request,
+  ) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/api/identity/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(request.toJson()),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_extractErrorMessage(response, 'Unable to send reset code.'));
+    }
+
+    final decodedBody = jsonDecode(response.body);
+
+    if (decodedBody is! Map<String, dynamic>) {
+      throw const FormatException('Invalid forgot-password response.');
+    }
+
+    return ForgotPasswordResponse.fromJson(decodedBody);
+  }
+
+  Future<ResetPasswordResponse> resetPassword(
+    ResetPasswordRequest request,
+  ) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/api/identity/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(request.toJson()),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_extractErrorMessage(response, 'Unable to reset password.'));
+    }
+
+    final decodedBody = jsonDecode(response.body);
+
+    if (decodedBody is! Map<String, dynamic>) {
+      throw const FormatException('Invalid reset-password response.');
+    }
+
+    return ResetPasswordResponse.fromJson(decodedBody);
+  }
+
+  /// Backend error responses are `{"message": "..."}`; falls back to
+  /// [fallback] when the body isn't in that shape.
+  String _extractErrorMessage(http.Response response, String fallback) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic> && decoded['message'] is String) {
+        return decoded['message'] as String;
+      }
+    } catch (_) {
+      // Falls through to the generic message below.
+    }
+    return fallback;
   }
 }
