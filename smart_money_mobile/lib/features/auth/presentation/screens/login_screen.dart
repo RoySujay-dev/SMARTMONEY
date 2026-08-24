@@ -105,7 +105,9 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid email or password')),
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
       );
     }
   }
@@ -300,12 +302,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               alignment: Alignment.centerRight,
                               child: TextButton(
                                 onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Forgot password will be added later',
-                                      ),
-                                    ),
+                                  Navigator.pushNamed(
+                                    context,
+                                    RouteNames.forgotPassword,
                                   );
                                 },
                                 child: const Text(

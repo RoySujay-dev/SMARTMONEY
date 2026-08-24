@@ -44,6 +44,7 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<SmartMoneyDbContext>();
 
     await RoleSeeder.SeedAsync(context);
+    await CashbackSettingsSeeder.SeedAsync(context);
 }
 
 // Configure the HTTP request pipeline.
@@ -60,7 +61,13 @@ app.UseCors("FlutterWeb");
 // Registered after UseCors so the Flutter web client can decode the images.
 app.UseStaticFiles();
 
-app.UseHttpsRedirection();
+// No HTTPS redirect in dev: browsers drop the Authorization header when a
+// cross-origin request is 307-redirected from http://localhost:5256 to
+// https://localhost:7056, which turns every [Authorize] endpoint into a 401.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthentication();
 

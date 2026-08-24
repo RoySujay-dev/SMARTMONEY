@@ -1,11 +1,10 @@
-/// Central place for the backend base URL used by the public browsing layer.
+/// Central place for the backend base URL, shared by every API service.
 ///
-/// The existing auth/profile services hardcode this same value in their own
-/// constructors; this constant is shared by the newer browsing feature so the
-/// value is defined once. It is intentionally not wired into the auth/profile
-/// services to avoid touching those existing flows.
+/// Must stay on HTTPS in local dev: the API's UseHttpsRedirection responds to
+/// plain-HTTP calls with a cross-origin 307, and browsers drop the
+/// Authorization header when following it, breaking authorized endpoints.
 class ApiConfig {
   ApiConfig._();
 
-  static const String baseUrl = 'http://localhost:5256';
+  static const String baseUrl = 'https://localhost:7056';
 }
