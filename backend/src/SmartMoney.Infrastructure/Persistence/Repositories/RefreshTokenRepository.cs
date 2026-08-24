@@ -32,4 +32,18 @@ public sealed class RefreshTokenRepository : IRefreshTokenRepository
     {
         await _context.RefreshTokens.AddAsync(refreshToken, cancellationToken);
     }
+
+    public async Task RevokeAllForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var tokens = await _context.RefreshTokens
+            .Where(refreshToken => refreshToken.UserId == userId && !refreshToken.IsRevoked)
+            .ToListAsync(cancellationToken);
+
+        foreach (var token in tokens)
+        {
+            token.Revoke();
+        }
+    }
 }

@@ -2,10 +2,12 @@
 using SmartMoney.Application.Abstractions.Messaging;
 using SmartMoney.Application.Contracts.Affiliate;
 using SmartMoney.Application.Contracts.Categories;
+using SmartMoney.Application.Contracts.Identity.ForgotPassword;
 using SmartMoney.Application.Contracts.Identity.Login;
 using SmartMoney.Application.Contracts.Identity.RefreshToken;
 using SmartMoney.Application.Contracts.Identity.Register;
 using SmartMoney.Application.Contracts.Identity.ResendEmailOtp;
+using SmartMoney.Application.Contracts.Identity.ResetPassword;
 using SmartMoney.Application.Contracts.Identity.VerifyEmailOtp;
 using SmartMoney.Application.Contracts.Offers;
 using SmartMoney.Application.Contracts.Search;
@@ -14,10 +16,12 @@ using SmartMoney.Application.Features.Affiliate.CreateAffiliateClick;
 using SmartMoney.Application.Features.Affiliate.IngestAffiliateConversion;
 using SmartMoney.Application.Features.Affiliate.ResolveAffiliateRedirect;
 using SmartMoney.Application.Features.Categories.GetCategories;
+using SmartMoney.Application.Features.Identity.ForgotPassword;
 using SmartMoney.Application.Features.Identity.Login;
 using SmartMoney.Application.Features.Identity.RefreshToken;
 using SmartMoney.Application.Features.Identity.Register;
 using SmartMoney.Application.Features.Identity.ResendEmailOtp;
+using SmartMoney.Application.Features.Identity.ResetPassword;
 using SmartMoney.Application.Features.Identity.VerifyEmailOtp;
 using SmartMoney.Application.Features.Offers.GetOfferDetails;
 using SmartMoney.Application.Features.Offers.GetOffers;
@@ -54,6 +58,14 @@ public static class ApplicationDependencyInjection
 
         services.AddScoped<ICommandHandler<RefreshTokenCommand, RefreshTokenResponse>,RefreshTokenCommandHandler>();
 
+        services.AddScoped<ForgotPasswordValidator>();
+
+        services.AddScoped<ICommandHandler<ForgotPasswordCommand, ForgotPasswordResponse>,ForgotPasswordCommandHandler>();
+
+        services.AddScoped<ResetPasswordValidator>();
+
+        services.AddScoped<ICommandHandler<ResetPasswordCommand, ResetPasswordResponse>,ResetPasswordCommandHandler>();
+
         services.AddScoped<IQueryHandler<GetCategoriesQuery,IReadOnlyList<CategoryListItemResponse>>,GetCategoriesQueryHandler>();
 
         services.AddScoped<IQueryHandler<GetStoresQuery,IReadOnlyList<StoreListItemResponse>>,GetStoresQueryHandler>();
@@ -75,6 +87,8 @@ public static class ApplicationDependencyInjection
         services.AddScoped<ICommandHandler<ResolveAffiliateRedirectCommand,string?>,ResolveAffiliateRedirectCommandHandler>();
 
         services.AddScoped<IngestAffiliateConversionValidator>();
+
+        services.AddScoped<ConversionCashbackProcessor>();
 
         services.AddScoped<ICommandHandler<IngestAffiliateConversionCommand,IngestAffiliateConversionResponse>,IngestAffiliateConversionCommandHandler>();
 

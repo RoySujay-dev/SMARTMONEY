@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:smart_money_mobile/features/auth/presentation/screens/register_screen.dart';
 
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/browsing/data/models/category.dart';
 import '../../features/browsing/presentation/screens/categories_screen.dart';
 import '../../features/browsing/presentation/screens/category_stores_screen.dart';
@@ -27,6 +29,18 @@ class AppRoutes {
 
       case RouteNames.register:
         return MaterialPageRoute(builder: (_) => const RegisterScreen());
+
+      case RouteNames.forgotPassword:
+        return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
+
+      case RouteNames.resetPassword:
+        final email = settings.arguments;
+        if (email is! String || email.isEmpty) {
+          return _invalidArgumentsRoute(settings.name);
+        }
+        return MaterialPageRoute(
+          builder: (_) => ResetPasswordScreen(email: email),
+        );
 
       case RouteNames.dashboard:
         // Keyed so the drawer can switch tabs from pushed routes that sit

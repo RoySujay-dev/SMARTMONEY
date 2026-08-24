@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IEmailVerificationOtpRepository,EmailVerificationOtpRepository>();
+        services.AddScoped<IPasswordResetOtpRepository, PasswordResetOtpRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IStoreRepository, StoreRepository>();
         services.AddScoped<IOfferRepository, OfferRepository>();
@@ -41,6 +42,8 @@ public static class DependencyInjection
         services.AddScoped<IStoreAffiliateMappingRepository, StoreAffiliateMappingRepository>();
         services.AddScoped<IAffiliateNetworkRepository, AffiliateNetworkRepository>();
         services.AddScoped<IAffiliateConversionRepository, AffiliateConversionRepository>();
+        services.AddScoped<ICashbackRepository, CashbackRepository>();
+        services.AddScoped<ICashbackSettingsRepository, CashbackSettingsRepository>();
 
         services.AddScoped<IUnitOfWork>(serviceProvider =>
             serviceProvider.GetRequiredService<SmartMoneyDbContext>());
@@ -54,7 +57,24 @@ public static class DependencyInjection
 
         // Affiliate services
         services.AddSingleton<IAffiliateTokenGenerator, SecureAffiliateTokenGenerator>();
-        
+
+        // Provider client: the real Cuelinks client is registered only when an
+        // API key is configured (User Secrets); otherwise the mock keeps the
+        // full click -> tracked URL -> conversion loop working locally.
+        services.Configure<CuelinksOptions>(
+            configuration.GetSection(CuelinksOptions.SectionName));
+
+        var cuelinksApiKey = configuration[$"{CuelinksOptions.SectionName}:ApiKey"];
+
+        if (string.IsNullOrWhiteSpace(cuelinksApiKey))
+        {
+            services.AddSingleton<IAffiliateNetworkClient, MockAffiliateNetworkClient>();
+        }
+        else
+        {
+            services.AddHttpClient<IAffiliateNetworkClient, CuelinksAffiliateNetworkClient>();
+        }
+
 
 
 
