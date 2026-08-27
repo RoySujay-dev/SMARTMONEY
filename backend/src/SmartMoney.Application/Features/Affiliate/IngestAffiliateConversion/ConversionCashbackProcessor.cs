@@ -11,9 +11,14 @@ namespace SmartMoney.Application.Features.Affiliate.IngestAffiliateConversion;
 ///
 /// MVP safety rule: this is automated code, so it is NEVER allowed to
 /// Confirm/Reject/Reverse a cashback on the network's word alone — only a
-/// human (via the M6 admin portal, not built yet) can do that. A decisive
-/// network status only flags the cashback for admin review; the admin reads
-/// the reason off AffiliateConversion.NetworkStatus via the FK.
+/// human (via the admin cashback endpoints) can do that. A decisive network
+/// status only flags the cashback for admin review; the admin reads the
+/// reason off AffiliateConversion.NetworkStatus via the FK.
+///
+/// The one wallet mutation automated code IS allowed: crediting the newly
+/// created cashback amount to the wallet's PendingBalance (with a ledger
+/// entry), so the user sees the reward as pending immediately. Moving money
+/// out of pending remains admin-only.
 ///
 /// The provider's "paid" status means the network was paid by the advertiser,
 /// not that Smart Money paid the user — it never touches cashback status at
@@ -25,23 +30,26 @@ public sealed class ConversionCashbackProcessor
     private readonly ICashbackSettingsRepository _settingsRepository;
     private readonly IWalletRepository _walletRepository;
     private readonly IAffiliateClickRepository _clickRepository;
+    private readonly IWalletTransactionRepository _walletTransactionRepository;
 
     public ConversionCashbackProcessor(
         ICashbackRepository cashbackRepository,
         ICashbackSettingsRepository settingsRepository,
         IWalletRepository walletRepository,
-        IAffiliateClickRepository clickRepository)
+        IAffiliateClickRepository clickRepository,
+        IWalletTransactionRepository walletTransactionRepository)
     {
         _cashbackRepository = cashbackRepository;
         _settingsRepository = settingsRepository;
         _walletRepository = walletRepository;
         _clickRepository = clickRepository;
+        _walletTransactionRepository = walletTransactionRepository;
     }
 
     /// <summary>
     /// Called after the conversion upsert, before SaveChanges, so cashback
-    /// creation/transition commits atomically with the conversion itself.
-    /// Never mutates wallet balances — that is the M4 ledger's job.
+    /// creation/transition (and the pending-balance credit that comes with
+    /// creation) commits atomically with the conversion itself.
     /// </summary>
     public async Task ProcessAsync(
         AffiliateConversion conversion,
@@ -151,6 +159,22 @@ public sealed class ConversionCashbackProcessor
             DateTime.UtcNow.AddDays(settings.ConfirmationWindowDays));
 
         await _cashbackRepository.AddAsync(cashback, cancellationToken);
+
+        // Mutate the wallet first, then snapshot its balances on the ledger
+        // row — every balance change writes exactly one ledger entry.
+        wallet.AddPendingCashback(amount);
+
+        await _walletTransactionRepository.AddAsync(
+            new WalletTransaction(
+                wallet.Id,
+                click.UserId,
+                WalletTransactionType.CashbackPending,
+                amount,
+                cashback.Id,
+                "Cashback tracked (pending network confirmation).",
+                wallet.AvailableBalance,
+                wallet.PendingBalance),
+            cancellationToken);
 
         return cashback;
     }

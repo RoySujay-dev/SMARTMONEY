@@ -13,6 +13,7 @@ public sealed class IngestAffiliateConversionHandlerTests
     private readonly Mock<ICashbackRepository> _cashbacks = new();
     private readonly Mock<ICashbackSettingsRepository> _settings = new();
     private readonly Mock<IWalletRepository> _wallets = new();
+    private readonly Mock<IWalletTransactionRepository> _walletTransactions = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
     private readonly AffiliateNetwork _network = new()
@@ -31,7 +32,8 @@ public sealed class IngestAffiliateConversionHandlerTests
     private IngestAffiliateConversionCommandHandler CreateHandler()
     {
         var processor = new ConversionCashbackProcessor(
-            _cashbacks.Object, _settings.Object, _wallets.Object, _clicks.Object);
+            _cashbacks.Object, _settings.Object, _wallets.Object, _clicks.Object,
+            _walletTransactions.Object);
 
         return new IngestAffiliateConversionCommandHandler(
             new IngestAffiliateConversionValidator(),

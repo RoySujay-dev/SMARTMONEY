@@ -64,7 +64,7 @@ public sealed class AffiliateController : ControllerBase
 
     // Internal ingestion endpoint for provider conversion data. The future
     // Cuelinks webhook/sync maps its payload into the same command.
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     [HttpPost("api/affiliate/conversions")]
     [ProducesResponseType(typeof(IngestAffiliateConversionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

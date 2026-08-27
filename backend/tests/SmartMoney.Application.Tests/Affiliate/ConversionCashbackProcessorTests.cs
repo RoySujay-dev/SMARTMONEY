@@ -12,6 +12,7 @@ public sealed class ConversionCashbackProcessorTests
     private readonly Mock<ICashbackSettingsRepository> _settings = new();
     private readonly Mock<IWalletRepository> _wallets = new();
     private readonly Mock<IAffiliateClickRepository> _clicks = new();
+    private readonly Mock<IWalletTransactionRepository> _walletTransactions = new();
 
     private readonly Guid _clickId = Guid.NewGuid();
     private readonly Guid _userId = Guid.NewGuid();
@@ -19,7 +20,8 @@ public sealed class ConversionCashbackProcessorTests
     private ConversionCashbackProcessor CreateProcessor()
     {
         return new ConversionCashbackProcessor(
-            _cashbacks.Object, _settings.Object, _wallets.Object, _clicks.Object);
+            _cashbacks.Object, _settings.Object, _wallets.Object, _clicks.Object,
+            _walletTransactions.Object);
     }
 
     private AffiliateConversion NewConversion(
@@ -71,11 +73,33 @@ public sealed class ConversionCashbackProcessorTests
         Assert.Equal(_userId, created.UserId);
     }
 
+    [Fact]
+    public async Task Pending_ExistingWallet_CreditsPendingBalanceWithLedgerEntry()
+    {
+        var wallet = new Wallet(_userId);
+        SetupHappyDependencies(existingWallet: wallet);
+        WalletTransaction? entry = null;
+        _walletTransactions.Setup(t => t.AddAsync(It.IsAny<WalletTransaction>(), It.IsAny<CancellationToken>()))
+            .Callback<WalletTransaction, CancellationToken>((tx, _) => entry = tx);
+
+        await CreateProcessor().ProcessAsync(NewConversion("pending"), CancellationToken.None);
+
+        Assert.Equal(150.00m, wallet.PendingBalance);
+        Assert.Equal(0m, wallet.AvailableBalance);
+        Assert.NotNull(entry);
+        Assert.Equal(WalletTransactionType.CashbackPending, entry!.Type);
+        Assert.Equal(150.00m, entry.Amount);
+        Assert.Equal(_userId, entry.UserId);
+        // Snapshots are taken AFTER the mutation.
+        Assert.Equal(150.00m, entry.PendingBalanceAfter);
+        Assert.Equal(0m, entry.AvailableBalanceAfter);
+    }
+
     // MVP safety rule: automated code may only ever land a cashback on
     // Pending or AwaitingAdminReview. It must NEVER call Confirm/Reject/
-    // Reverse directly — those are admin-only actions (M6, not built yet).
-    // Every "decisive status" test below asserts AwaitingAdminReview, not
-    // the terminal status the network reported.
+    // Reverse directly — those are admin-only actions (the admin cashback
+    // endpoints). Every "decisive status" test below asserts
+    // AwaitingAdminReview, not the terminal status the network reported.
 
     [Fact]
     public async Task Validated_WithoutPriorCashback_CreatesAndFlagsForReview()
@@ -103,6 +127,11 @@ public sealed class ConversionCashbackProcessorTests
         Assert.Equal(CashbackStatus.AwaitingAdminReview, existing.Status);
         _cashbacks.Verify(
             c => c.AddAsync(It.IsAny<Cashback>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        // Flag-only path: the pending credit happened at creation time, so no
+        // wallet mutation and no ledger entry now.
+        _walletTransactions.Verify(
+            t => t.AddAsync(It.IsAny<WalletTransaction>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -235,7 +264,7 @@ public sealed class ConversionCashbackProcessorTests
     }
 
     [Fact]
-    public async Task MissingWallet_IsCreatedWithoutBalanceMutation()
+    public async Task MissingWallet_IsCreatedAndCreditedWithPendingCashback()
     {
         SetupHappyDependencies(existingWallet: null);
         Wallet? createdWallet = null;
@@ -246,8 +275,15 @@ public sealed class ConversionCashbackProcessorTests
 
         Assert.NotNull(createdWallet);
         Assert.Equal(_userId, createdWallet!.UserId);
-        Assert.Equal(0m, createdWallet.PendingBalance);
+        Assert.Equal(150.00m, createdWallet.PendingBalance);
         Assert.Equal(0m, createdWallet.AvailableBalance);
+        _walletTransactions.Verify(
+            t => t.AddAsync(
+                It.Is<WalletTransaction>(tx =>
+                    tx.Type == WalletTransactionType.CashbackPending
+                    && tx.Amount == 150.00m),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Theory]

@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<IAffiliateConversionRepository, AffiliateConversionRepository>();
         services.AddScoped<ICashbackRepository, CashbackRepository>();
         services.AddScoped<ICashbackSettingsRepository, CashbackSettingsRepository>();
+        services.AddScoped<IWalletTransactionRepository, WalletTransactionRepository>();
 
         services.AddScoped<IUnitOfWork>(serviceProvider =>
             serviceProvider.GetRequiredService<SmartMoneyDbContext>());

@@ -30,4 +30,12 @@ public sealed class WalletRepository : IWalletRepository
                 wallet => wallet.UserId == userId,
                 cancellationToken);
     }
+
+    public async Task<Wallet?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Wallets
+            .FirstOrDefaultAsync(wallet => wallet.Id == id, cancellationToken);
+    }
 }
