@@ -2,6 +2,8 @@
 using SmartMoney.Application.Abstractions.Messaging;
 using SmartMoney.Application.Contracts.Affiliate;
 using SmartMoney.Application.Contracts.Categories;
+using SmartMoney.Application.Contracts.Cashbacks;
+using SmartMoney.Application.Contracts.Identity.ChangeUserRole;
 using SmartMoney.Application.Contracts.Identity.ForgotPassword;
 using SmartMoney.Application.Contracts.Identity.Login;
 using SmartMoney.Application.Contracts.Identity.RefreshToken;
@@ -12,10 +14,17 @@ using SmartMoney.Application.Contracts.Identity.VerifyEmailOtp;
 using SmartMoney.Application.Contracts.Offers;
 using SmartMoney.Application.Contracts.Search;
 using SmartMoney.Application.Contracts.Stores;
+using SmartMoney.Application.Contracts.Wallets;
 using SmartMoney.Application.Features.Affiliate.CreateAffiliateClick;
 using SmartMoney.Application.Features.Affiliate.IngestAffiliateConversion;
 using SmartMoney.Application.Features.Affiliate.ResolveAffiliateRedirect;
+using SmartMoney.Application.Features.Cashbacks.ApproveCashback;
+using SmartMoney.Application.Features.Cashbacks.GetMyCashbacks;
+using SmartMoney.Application.Features.Cashbacks.ListCashbacks;
+using SmartMoney.Application.Features.Cashbacks.RejectCashback;
+using SmartMoney.Application.Features.Cashbacks.ReverseCashback;
 using SmartMoney.Application.Features.Categories.GetCategories;
+using SmartMoney.Application.Features.Identity.ChangeUserRole;
 using SmartMoney.Application.Features.Identity.ForgotPassword;
 using SmartMoney.Application.Features.Identity.Login;
 using SmartMoney.Application.Features.Identity.RefreshToken;
@@ -30,6 +39,8 @@ using SmartMoney.Application.Features.Stores.GetStoreDetails;
 using SmartMoney.Application.Features.Stores.GetStoreOffers;
 using SmartMoney.Application.Features.Stores.GetStores;
 using SmartMoney.Application.Features.Stores.GetStoresByCategory;
+using SmartMoney.Application.Features.Wallets.GetMyWallet;
+using SmartMoney.Application.Features.Wallets.GetMyWalletTransactions;
 
 
 namespace SmartMoney.Application.DependencyInjection;
@@ -91,6 +102,24 @@ public static class ApplicationDependencyInjection
         services.AddScoped<ConversionCashbackProcessor>();
 
         services.AddScoped<ICommandHandler<IngestAffiliateConversionCommand,IngestAffiliateConversionResponse>,IngestAffiliateConversionCommandHandler>();
+
+        services.AddScoped<IQueryHandler<ListCashbacksQuery,AdminCashbackListResponse>,ListCashbacksQueryHandler>();
+
+        services.AddScoped<ICommandHandler<ApproveCashbackCommand,CashbackDecisionResponse?>,ApproveCashbackCommandHandler>();
+
+        services.AddScoped<ICommandHandler<RejectCashbackCommand,CashbackDecisionResponse?>,RejectCashbackCommandHandler>();
+
+        services.AddScoped<ICommandHandler<ReverseCashbackCommand,CashbackDecisionResponse?>,ReverseCashbackCommandHandler>();
+
+        services.AddScoped<ChangeUserRoleValidator>();
+
+        services.AddScoped<ICommandHandler<ChangeUserRoleCommand,ChangeUserRoleResponse?>,ChangeUserRoleCommandHandler>();
+
+        services.AddScoped<IQueryHandler<GetMyWalletQuery,MyWalletResponse>,GetMyWalletQueryHandler>();
+
+        services.AddScoped<IQueryHandler<GetMyWalletTransactionsQuery,WalletTransactionListResponse>,GetMyWalletTransactionsQueryHandler>();
+
+        services.AddScoped<IQueryHandler<GetMyCashbacksQuery,MyCashbackListResponse>,GetMyCashbacksQueryHandler>();
 
         return services;
     }

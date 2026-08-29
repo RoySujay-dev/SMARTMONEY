@@ -48,6 +48,8 @@ public sealed class SmartMoneyDbContext : DbContext, IUnitOfWork
 
     public DbSet<CashbackSettings> CashbackSettings => Set<CashbackSettings>();
 
+    public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -19,7 +19,25 @@ builder.Services.AddControllers();
 //builder.Services.AddOpenApi();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    // Bearer support so [Authorize] endpoints are testable from Swagger UI:
+    // click Authorize and paste the raw JWT (no "Bearer " prefix needed).
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.ParameterLocation.Header,
+        Description = "Paste the accessToken from api/identity/login."
+    });
+
+    options.AddSecurityRequirement(document => new Microsoft.OpenApi.OpenApiSecurityRequirement
+    {
+        [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+    });
+});
 
 builder.Services.AddCors(options =>
 {
@@ -45,6 +63,7 @@ using (var scope = app.Services.CreateScope())
 
     await RoleSeeder.SeedAsync(context);
     await CashbackSettingsSeeder.SeedAsync(context);
+    await SuperAdminSeeder.SeedAsync(context, app.Configuration);
 }
 
 // Configure the HTTP request pipeline.

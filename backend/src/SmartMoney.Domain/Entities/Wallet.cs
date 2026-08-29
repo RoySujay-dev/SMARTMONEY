@@ -49,6 +49,36 @@ public class Wallet : BaseEntity
         MarkAsUpdated();
     }
 
+    public void RemovePendingCashback(decimal amount)
+    {
+        if (amount <= 0)
+            throw new ArgumentException("Amount must be greater than zero.");
+
+        if (PendingBalance < amount)
+            throw new InvalidOperationException("Insufficient pending cashback.");
+
+        PendingBalance -= amount;
+        MarkAsUpdated();
+    }
+
+    // Undoes a previously approved cashback. Fails (rather than going
+    // negative) if the user already withdrew the funds — a negative-balance
+    // policy is out of MVP scope.
+    public void ReverseConfirmedCashback(decimal amount)
+    {
+        if (amount <= 0)
+            throw new ArgumentException("Amount must be greater than zero.");
+
+        if (AvailableBalance < amount)
+            throw new InvalidOperationException(
+                "Insufficient available balance to reverse cashback.");
+
+        AvailableBalance -= amount;
+        TotalEarned -= amount;
+
+        MarkAsUpdated();
+    }
+
     public void Withdraw(decimal amount)
     {
         if (amount <= 0)
